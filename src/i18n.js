@@ -26,7 +26,7 @@ export const strings = {
     installHelp: 'Android (Chrome): menú ⋮ → "Agregar a pantalla principal". iPhone (Safari): botón Compartir → "Agregar a inicio".',
     pin: 'PIN de administrador', enter: 'Entrar', wrongPin: 'PIN incorrecto', transfer: 'Traslado', tour: 'Tour', seats: 'Cupos libres: {n}', full: 'Lleno',
     selectDate: 'Elige una fecha', nameField: 'nombre', phoneField: 'WhatsApp', dateField: 'fecha', hotelField: 'hotel',
-    highSeason: 'Temporada alta', chooseRide: 'Elige tu transporte', otherPlace: 'Otro lugar…', otherPlaceHint: 'Escribe el lugar (hotel, ciudad, dirección)', quote: 'Por cotizar', quoteNote: 'Te enviamos el precio por WhatsApp lo antes posible.', requestQuote: 'Solicitar cotización', policyTitle: 'Política de cancelación', depositNote: 'Para confirmar se paga un depósito del {n}%.', depositNow: 'Depósito ({n}%)',
+    highSeason: 'Temporada alta', chooseRide: 'Elige tu transporte', otherPlace: 'Otro lugar…', otherPlaceHint: 'Escribe el lugar (hotel, ciudad, dirección)', quote: 'Por cotizar', quoteNote: 'Te enviamos el precio por WhatsApp lo antes posible.', requestQuote: 'Solicitar cotización', policyTitle: 'Política de cancelación', depositNote: 'Para confirmar se paga un depósito del {n}%.', depositNow: 'Depósito ({n}%)', sending: 'Enviando…', sendError: 'No pudimos enviar. Revisa tu conexión a internet e intenta de nuevo.',
   },
   en: {
     transfers: 'Transfers', explore: 'Explore', bookings: 'My bookings', profile: 'Profile',
@@ -55,7 +55,7 @@ export const strings = {
     installHelp: 'Android (Chrome): menu ⋮ → "Add to Home screen". iPhone (Safari): Share button → "Add to Home Screen".',
     pin: 'Admin PIN', enter: 'Enter', wrongPin: 'Wrong PIN', transfer: 'Transfer', tour: 'Tour', seats: 'Seats left: {n}', full: 'Full',
     selectDate: 'Pick a date', nameField: 'name', phoneField: 'WhatsApp', dateField: 'date', hotelField: 'hotel',
-    highSeason: 'High season', chooseRide: 'Choose your ride', otherPlace: 'Other place…', otherPlaceHint: 'Type the place (hotel, town, address)', quote: 'Quote pending', quoteNote: "We'll send you the price on WhatsApp shortly.", requestQuote: 'Request a quote', policyTitle: 'Cancellation policy', depositNote: 'A {n}% deposit is required to confirm.', depositNow: 'Deposit ({n}%)',
+    highSeason: 'High season', chooseRide: 'Choose your ride', otherPlace: 'Other place…', otherPlaceHint: 'Type the place (hotel, town, address)', quote: 'Quote pending', quoteNote: "We'll send you the price on WhatsApp shortly.", requestQuote: 'Request a quote', policyTitle: 'Cancellation policy', depositNote: 'A {n}% deposit is required to confirm.', depositNow: 'Deposit ({n}%)', sending: 'Sending…', sendError: "We couldn't send it. Check your internet connection and try again.",
   },
 };
 

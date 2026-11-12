@@ -1,9 +1,18 @@
-import { useState } from 'react';
-import { useStore, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf } from './store.jsx';
+import { useEffect, useState } from 'react';
+import { useStore as useBaseStore, isAdminRole, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf } from './store.jsx';
+import * as cloud from './cloud.js';
 import { vehicleTypes } from './data.js';
 import { Icon, Field, Modal } from './ui.jsx';
 
-// Panel del dueño (solo en español). Entrar desde Perfil → Panel del dueño (PIN inicial 1234).
+// Panel del dueño (solo en español). Entrar desde Perfil → Panel del dueño, con correo y contraseña.
+// Dentro del panel "bookings" son TODAS las reservas (de la nube), no solo las de este celular.
+function useStore() {
+  const s = useBaseStore();
+  return { ...s, bookings: s.adminBookings, updateBooking: s.updateAdminBooking };
+}
+
+const roleNames = { superadmin: 'Súper administrador', owner: 'Dueño del negocio', staff: 'Empleado', partner: 'Socio', driver: 'Chofer', pending: 'Sin permiso todavía' };
+
 const sections = [
   ['summary', 'Resumen'],
   ['bookings', 'Reservas'],
@@ -13,18 +22,54 @@ const sections = [
   ['places', 'Lugares'],
   ['rates', 'Tarifas'],
   ['settings', 'Ajustes'],
+  ['users', 'Usuarios'],
 ];
 
 export default function Admin({ nav }) {
+  const { admin, logout, reloadAdmin, cloudError, syncing } = useStore();
   const [sec, setSec] = useState('summary');
+  // las reservas nuevas aparecen solas cada minuto
+  useEffect(() => {
+    if (!admin) return undefined;
+    const id = setInterval(reloadAdmin, 60000);
+    return () => clearInterval(id);
+  }, [admin]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const role = admin?.profile.role;
+  const head = (
+    <div className="topbar">
+      <button className="round" onClick={nav.back} aria-label="Atrás"><Icon.back /></button>
+      <h2>Panel del dueño</h2>
+    </div>
+  );
+  if (!admin) return <div className="pad stack narrow">{head}<Login /></div>;
+  const who = (
+    <div className="card note small admin-who">
+      <span>👤 {admin.profile.email} · <strong>{roleNames[role] || role}</strong>{syncing ? ' · guardando…' : ''}</span>
+      <span className="admin-who-actions">
+        <button className="link" onClick={() => { reloadAdmin(); nav.toast('Actualizado'); }}>Actualizar</button>
+        <button className="link" onClick={logout}>Salir</button>
+      </span>
+    </div>
+  );
+  if (!isAdminRole(role)) {
+    return (
+      <div className="pad stack admin narrow-wide">
+        {head}
+        {who}
+        {role === 'partner' || role === 'driver' ? <MyTrips role={role} /> : (
+          <div className="card"><p>Tu cuenta ya existe, pero todavía no tiene permiso. Pídele al dueño de la app que te asigne un rol en Panel → Usuarios.</p></div>
+        )}
+      </div>
+    );
+  }
   return (
     <div className="pad stack admin narrow-wide">
-      <div className="topbar">
-        <button className="round" onClick={nav.back} aria-label="Atrás"><Icon.back /></button>
-        <h2>Panel del dueño</h2>
-      </div>
+      {head}
+      {who}
+      {cloudError && <div className="card error small">{cloudError}</div>}
       <div className="chips scroll-x">
-        {sections.map(([id, label]) => (
+        {sections.filter(([id]) => id !== 'users' || role !== 'staff').map(([id, label]) => (
           <button key={id} className={'chip' + (sec === id ? ' on' : '')} onClick={() => setSec(id)}>{label}</button>
         ))}
       </div>
@@ -36,7 +81,111 @@ export default function Admin({ nav }) {
       {sec === 'places' && <Places nav={nav} />}
       {sec === 'rates' && <Rates nav={nav} />}
       {sec === 'settings' && <Settings nav={nav} />}
+      {sec === 'users' && <Users nav={nav} />}
     </div>
+  );
+}
+
+function Login() {
+  const { login } = useStore();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr('');
+    try { await login(email, password); }
+    catch (ex) { setErr(ex.message === 'Failed to fetch' ? 'Sin conexión a internet' : ex.message); }
+    setBusy(false);
+  };
+  return (
+    <form className="card form" onSubmit={submit}>
+      <h3 className="card-title">Entrar al panel</h3>
+      <Field label="Correo"><input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+      <Field label="Contraseña"><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+      {err && <p className="error small">{err}</p>}
+      <button className="btn-gold" type="submit" disabled={busy || !email || !password}>{busy ? 'Entrando…' : 'Entrar'}</button>
+      <p className="muted small">Las cuentas las crea el dueño de la app. Socios y choferes ven aquí solo sus viajes.</p>
+    </form>
+  );
+}
+
+// Socios y choferes: solo sus reservas (la base de datos no les deja ver las demás).
+function MyTrips({ role }) {
+  const { bookings } = useStore();
+  const list = bookings.filter((b) => b.status !== 'cancelled').sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  return (
+    <>
+      <h3 className="section">{role === 'driver' ? 'Mis viajes' : 'Reservas de mis tours'}</h3>
+      {list.length === 0 && <p className="muted center">No tienes reservas asignadas.</p>}
+      {list.map((b) => (
+        <div key={b.id} className="card admin-booking">
+          <div className="bi-top"><span className="gold bold">{b.code}</span><span className="muted small">{b.type === 'tour' ? 'Tour' : 'Traslado'}</span></div>
+          <div className="bold">{b.type === 'tour' ? b.tourName?.es : `${b.from} → ${b.to}`}</div>
+          <div className="small">{fmtDate(b.date, 'es')} · {fmtTime(b.time, 'es')}</div>
+          <div className="small muted">{b.type === 'tour' ? `${b.adults} adultos, ${b.kids} niños${b.hotel ? ' · Hotel: ' + b.hotel : ''}` : `${b.pax} pax, ${b.bags} maletas${b.flight ? ' · Vuelo ' + b.flight : ''}`}</div>
+          <div className="small">👤 {b.customer.name} · <a href={waLink(b.customer.phone, `Hola ${b.customer.name}, le escribimos de TourRide CR por su reserva ${b.code}.`)} target="_blank" rel="noreferrer">{b.customer.phone}</a></div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+// Cuentas: el dueño de la app da los permisos (rol) a cada persona.
+function Users({ nav }) {
+  const { admin, partners, drivers } = useStore();
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState('');
+  const myRole = admin.profile.role;
+  const load = () => cloud.fetchProfiles().then(setList).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const change = async (u, patch) => {
+    setList((l) => l.map((x) => (x.id === u.id ? { ...x, ...patch } : x)));
+    try { await cloud.updateProfile(u.id, patch); nav.toast('Guardado'); }
+    catch (e) { setErr('No se pudo guardar: ' + e.message); load(); }
+  };
+  const roles = Object.keys(roleNames).filter((r) => r !== 'superadmin' || myRole === 'superadmin');
+  return (
+    <>
+      <div className="card note small">
+        Para agregar a alguien: créale el usuario en Supabase (Authentication → Users → Add user, con "Auto Confirm User").
+        Aparece aquí como "Sin permiso todavía"; elige su rol. A un socio o chofer dile cuál es el suyo.
+      </div>
+      {err && <p className="error small">{err}</p>}
+      {!list && !err && <p className="muted center">Cargando…</p>}
+      {(list || []).map((u) => {
+        const locked = u.role === 'superadmin' && myRole !== 'superadmin';
+        return (
+          <div key={u.id} className="card form">
+            <div className="bold">{u.email}</div>
+            <div className="grid2">
+              <Field label="Rol">
+                <select value={u.role} disabled={locked || u.id === admin.profile.id} onChange={(e) => change(u, { role: e.target.value })}>
+                  {(locked ? [u.role] : roles).map((r) => <option key={r} value={r}>{roleNames[r]}</option>)}
+                </select>
+              </Field>
+              {u.role === 'partner' && (
+                <Field label="¿Qué socio es?">
+                  <select value={u.partner_id || ''} onChange={(e) => change(u, { partner_id: e.target.value || null })}>
+                    <option value="">Elegir…</option>
+                    {partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </Field>
+              )}
+              {u.role === 'driver' && (
+                <Field label="¿Qué chofer es?">
+                  <select value={u.driver_id || ''} onChange={(e) => change(u, { driver_id: e.target.value || null })}>
+                    <option value="">Elegir…</option>
+                    {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </Field>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
@@ -53,9 +202,6 @@ function Summary() {
   }));
   return (
     <>
-      <div className="card note small">
-        Etapa 1: las reservas se guardan solo en este celular. En la etapa 2 las conectamos a la nube para que veas las de todos tus clientes.
-      </div>
       <div className="grid2">
         <Stat label="Reservas activas" value={active.length} />
         <Stat label="Ventas totales" value={usd(sales)} sub={crc(sales, settings.exchangeRate)} />
@@ -326,9 +472,8 @@ function Rates({ nav }) {
 }
 
 function Settings({ nav }) {
-  const { settings, setSettings, resetDemo } = useStore();
+  const { settings, setSettings } = useStore();
   const [f, setF] = useState({ ...settings, cancelPolicy: settings.cancelPolicy || { es: '', en: '' }, couponsText: Object.entries(settings.coupons).map(([k, v]) => `${k}=${v}`).join('\n') });
-  const [ask, setAsk] = useState(false);
   const set = (k, num) => (e) => setF({ ...f, [k]: num ? Number(e.target.value) : e.target.value });
   const save = () => {
     const coupons = {};
@@ -348,7 +493,6 @@ function Settings({ nav }) {
         <Field label="Tipo de cambio (₡ por $)"><input type="number" value={f.exchangeRate} onChange={set('exchangeRate', true)} /></Field>
         <Field label="Transporte hotel ($/persona)"><input type="number" value={f.hotelPickupPerPerson} onChange={set('hotelPickupPerPerson', true)} /></Field>
         <Field label="Salidas del shuttle (ej: 07:30, 14:00)"><input value={(f.shuttleTimes || []).join(', ')} onChange={(e) => setF({ ...f, shuttleTimes: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} /></Field>
-        <Field label="PIN del panel"><input value={f.adminPin} inputMode="numeric" onChange={set('adminPin')} /></Field>
       </div>
       <div className="grid2">
         <Field label="Moneda principal para el cliente">
@@ -366,16 +510,6 @@ function Settings({ nav }) {
       <label className="toggle"><input type="checkbox" checked={f.highSeason} onChange={(e) => setF({ ...f, highSeason: e.target.checked })} /> Temporada alta (usa precios altos)</label>
       <Field label="Cupones (CÓDIGO=porcentaje, uno por línea)"><textarea rows="3" value={f.couponsText} onChange={set('couponsText')} /></Field>
       <button className="btn-gold" onClick={save}>Guardar ajustes</button>
-      <button className="link danger" onClick={() => setAsk(true)}>Borrar todo y volver a los datos de ejemplo</button>
-      {ask && (
-        <Modal onClose={() => setAsk(false)}>
-          <p>Esto borra todas las reservas y cambios guardados en este celular. ¿Seguro?</p>
-          <div className="grid2">
-            <button className="btn-outline" onClick={() => setAsk(false)}>No</button>
-            <button className="btn-gold danger-bg" onClick={() => { resetDemo(); setAsk(false); nav.back(); }}>Sí, borrar</button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

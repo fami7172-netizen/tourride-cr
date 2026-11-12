@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StoreProvider, useStore, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
+import { StoreProvider, useStore, useDayBookings, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
 import { vehicleTypes } from './data.js';
 import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
@@ -132,7 +132,8 @@ function TransfersTab({ nav }) {
   const to = d.to === OTHER ? d.toOther.trim() : d.to;
   const rate = findRate(rates, from, to);
   const same = !from || !to || from.toLowerCase() === to.toLowerCase();
-  const options = transferOptions(rate, d.pax, d.bags, (typeId) => unitsFree(typeId, d.date, d.time, store));
+  const dayBookings = useDayBookings(d.date);
+  const options = transferOptions(rate, d.pax, d.bags, (typeId) => unitsFree(typeId, d.date, d.time, { ...store, bookings: dayBookings }));
   // sin tarifa: se sugiere el vehículo privado más pequeño que le sirve al grupo y el precio queda "por cotizar"
   const quoteVehicle = !rate || options.length === 0 ? vehicleTypes.find((v) => !v.perPerson && v.id !== 'suv' && v.capacity >= d.pax && v.luggage >= d.bags) : null;
   const opt = options.find((o) => o.v.id === chosen) || options[0];
@@ -282,14 +283,15 @@ function missing(t, fields) {
 
 // ---------- reservar traslado ----------
 function BookTransfer({ draft, nav }) {
-  const { t, lang, settings, profile, setProfile, addBooking, fm, fm2 } = useStore();
+  const { t, lang, settings, profile, setProfile, submitBooking, fm, fm2 } = useStore();
+  const [sending, setSending] = useState(false);
   const deposit = draft.quote ? 0 : Math.round((draft.price * (settings.depositPct || 0)) / 100);
   const [c, setC] = useState(profile);
   const [pay, setPay] = useState('sinpe');
   const [err, setErr] = useState('');
   const vehicle = vehicleTypes.find((v) => v.id === draft.vehicleId);
 
-  const confirm = () => {
+  const confirm = async () => {
     const m = missing(t, [['nameField', c.name], ['phoneField', c.phone]]);
     if (m) return setErr(m);
     setProfile(c);
@@ -297,11 +299,9 @@ function BookTransfer({ draft, nav }) {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       code: newCode(), type: 'transfer', createdAt: new Date().toISOString(), status: draft.quote ? 'quote' : 'pending', payment: pay,
       customer: c, from: draft.from, to: draft.to, date: draft.date, time: draft.time, flight: draft.flight,
-      pax: draft.pax, bags: draft.bags, vehicleId: draft.vehicleId, total: draft.price, deposit, commission: 0,
+      pax: draft.pax, bags: draft.bags, vehicleId: draft.vehicleId, total: draft.price || 0, deposit, commission: 0,
     };
-    addBooking(b);
-    nav.reset();
-    nav.push({ name: 'booking', id: b.id });
+    await send(b, submitBooking, setSending, setErr, t, nav);
   };
 
   return (
@@ -324,9 +324,23 @@ function BookTransfer({ draft, nav }) {
       {draft.quote && <p className="muted small">{t('quoteNote')}</p>}
       <Policy />
       {err && <p className="error">{err}</p>}
-      <button className="btn-gold" onClick={confirm}>{draft.quote ? t('requestQuote') : t('confirm')}</button>
+      <button className="btn-gold" disabled={sending} onClick={confirm}>{sending ? t('sending') : draft.quote ? t('requestQuote') : t('confirm')}</button>
     </div>
   );
+}
+
+// Manda la reserva a la nube; si no hay señal, avisa y deja los datos para intentar de nuevo.
+async function send(b, submitBooking, setSending, setErr, t, nav) {
+  setSending(true);
+  setErr('');
+  try {
+    const saved = await submitBooking(b);
+    nav.reset();
+    nav.push({ name: 'booking', id: saved.id });
+  } catch (e) {
+    setErr(t('sendError'));
+    setSending(false);
+  }
 }
 
 function TopBar({ title, onBack }) {
@@ -454,8 +468,9 @@ function TourDetail({ id, nav }) {
 
 // ---------- RESERVAR TOUR ----------
 function BookTour({ id, nav }) {
-  const { t, lang, tours, partners, settings, profile, setProfile, bookings, addBooking, fm, fm2 } = useStore();
+  const { t, lang, tours, settings, profile, setProfile, submitBooking, fm, fm2 } = useStore();
   const tour = tours.find((x) => x.id === id);
+  const [sending, setSending] = useState(false);
   const prices = tourPrices(tour, settings);
   const [date, setDate] = useState(todayISO(1));
   const [time, setTime] = useState(tour.schedules[0]);
@@ -470,8 +485,9 @@ function BookTour({ id, nav }) {
   const [couponMsg, setCouponMsg] = useState('');
   const [err, setErr] = useState('');
 
+  const dayBookings = useDayBookings(date);
   const seatsLeft = (tm) => {
-    const used = bookings
+    const used = dayBookings
       .filter((b) => b.type === 'tour' && b.tourId === tour.id && b.date === date && b.time === tm && b.status !== 'cancelled')
       .reduce((s, b) => s + b.adults + b.kids, 0);
     return Math.max(0, tour.capacity - used);
@@ -483,9 +499,7 @@ function BookTour({ id, nav }) {
   const discount = Math.round((tourAmount * discountPct) / 100);
   const pickupAmount = pickup ? people * settings.hotelPickupPerPerson : 0;
   const total = tourAmount - discount + pickupAmount;
-  const partner = partners.find((p) => p.id === tour.partnerId);
   const deposit = Math.round((total * (settings.depositPct || 0)) / 100);
-  const commission = Math.round(((tourAmount - discount) * (partner?.commission || 0)) / 100);
 
   const applyCoupon = () => {
     const pct = settings.coupons[coupon.trim().toUpperCase()];
@@ -493,7 +507,7 @@ function BookTour({ id, nav }) {
     else { setDiscountPct(0); setCouponMsg(t('couponBad')); }
   };
 
-  const confirm = () => {
+  const confirm = async () => {
     const fields = [['dateField', date], ['nameField', c.name], ['phoneField', c.phone]];
     if (pickup) fields.push(['hotelField', hotel]);
     const m = missing(t, fields);
@@ -505,11 +519,9 @@ function BookTour({ id, nav }) {
       code: newCode(), type: 'tour', createdAt: new Date().toISOString(), status: 'pending', payment: pay,
       customer: c, tourId: tour.id, tourName: tour.name, partnerId: tour.partnerId, location: tour.location,
       date, time, adults, kids, pickup, hotel: pickup ? hotel : '', coupon: discountPct ? coupon.toUpperCase() : '',
-      tourAmount, discount, pickupAmount, total, deposit, commission,
+      tourAmount, discount, pickupAmount, total, deposit, commission: 0, // la comisión la calcula el panel
     };
-    addBooking(b);
-    nav.reset();
-    nav.push({ name: 'booking', id: b.id });
+    await send(b, submitBooking, setSending, setErr, t, nav);
   };
 
   return (
@@ -558,7 +570,7 @@ function BookTour({ id, nav }) {
       </div>
       <Policy />
       {err && <p className="error">{err}</p>}
-      <button className="btn-gold" onClick={confirm}>{t('confirm')}</button>
+      <button className="btn-gold" disabled={sending} onClick={confirm}>{sending ? t('sending') : t('confirm')}</button>
     </div>
   );
 }
@@ -601,10 +613,15 @@ function bookingText(b, t, lang, fm2) {
 }
 
 function BookingDone({ id, nav }) {
-  const { t, lang, bookings, settings, updateBooking, fm, fm2 } = useStore();
+  const { t, lang, bookings, settings, cancelMine, refreshMyBookings, fm, fm2 } = useStore();
   const [ask, setAsk] = useState(false);
+  const [cancelErr, setCancelErr] = useState('');
+  useEffect(() => { refreshMyBookings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const b = bookings.find((x) => x.id === id);
   if (!b) return null;
+  const doCancel = async () => {
+    try { await cancelMine(b); setAsk(false); } catch (e) { setCancelErr(t('sendError')); }
+  };
   const vehicle = vehicleTypes.find((v) => v.id === b.vehicleId);
   const qrValue = `TOURRIDE|${b.code}|${b.type}|${b.date}|${b.time}|${b.customer.name}`;
   const text = bookingText(b, t, lang, fm2);
@@ -638,8 +655,9 @@ function BookingDone({ id, nav }) {
           <p>{t('cancelAsk')}</p>
           <div className="grid2">
             <button className="btn-outline" onClick={() => setAsk(false)}>{t('no')}</button>
-            <button className="btn-gold danger-bg" onClick={() => { updateBooking(b.id, { status: 'cancelled' }); setAsk(false); }}>{t('yes')}</button>
+            <button className="btn-gold danger-bg" onClick={doCancel}>{t('yes')}</button>
           </div>
+          {cancelErr && <p className="error small">{cancelErr}</p>}
         </Modal>
       )}
     </div>
@@ -648,8 +666,9 @@ function BookingDone({ id, nav }) {
 
 // ---------- MIS RESERVAS ----------
 function BookingsTab({ nav }) {
-  const { t, lang, bookings, profile, fm } = useStore();
-  // Mientras no haya cuentas de usuario, se muestran las reservas hechas en este celular.
+  const { t, lang, bookings, profile, fm, refreshMyBookings } = useStore();
+  // Reservas hechas en este celular; su estado (pagada, precio cotizado...) se actualiza desde la nube.
+  useEffect(() => { refreshMyBookings(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const mine = bookings;
   return (
     <div className="pad stack narrow">
@@ -679,9 +698,6 @@ function BookingsTab({ nav }) {
 function ProfileTab({ nav }) {
   const { t, lang, setLang, profile, setProfile, settings } = useStore();
   const [c, setC] = useState(profile);
-  const [pinOpen, setPinOpen] = useState(false);
-  const [pin, setPin] = useState('');
-  const [pinErr, setPinErr] = useState('');
   useEffect(() => setC(profile), [profile]);
   const up = (k) => (e) => setC({ ...c, [k]: e.target.value });
 
@@ -709,21 +725,7 @@ function ProfileTab({ nav }) {
         <h3 className="card-title">📲 {t('install')}</h3>
         <p className="muted small">{t('installHelp')}</p>
       </div>
-      <button className="link" onClick={() => { setPin(''); setPinErr(''); setPinOpen(true); }}>🔒 {t('admin')}</button>
-      {pinOpen && (
-        <Modal onClose={() => setPinOpen(false)}>
-          <h3>{t('pin')}</h3>
-          <form onSubmit={(e) => {
-            e.preventDefault();
-            if (pin === settings.adminPin) { setPinOpen(false); nav.push({ name: 'admin' }); }
-            else setPinErr(t('wrongPin'));
-          }}>
-            <input className="pin-input" type="password" inputMode="numeric" autoFocus value={pin} onChange={(e) => setPin(e.target.value)} />
-            {pinErr && <p className="error small">{pinErr}</p>}
-            <button className="btn-gold" type="submit">{t('enter')}</button>
-          </form>
-        </Modal>
-      )}
+      <button className="link" onClick={() => nav.push({ name: 'admin' })}>🔒 {t('admin')}</button>
     </div>
   );
 }

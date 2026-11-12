@@ -1,9 +1,11 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import * as cloud from './cloud.js';
 import { initialSettings, initialPartners, initialTours, initialRates, initialFleet, initialDrivers, zones, vehicleTypes } from './data.js';
 import { makeT } from './i18n.js';
 
-// Por ahora los datos se guardan en este celular (localStorage).
-// En la etapa 2 esto se cambia por Supabase para que el dueño vea las reservas de todos.
+// El catálogo y las reservas viven en la base de datos (Supabase, ver cloud.js).
+// En el celular se guarda una copia (localStorage) para que la app abra rápido y funcione sin señal.
+// "bookings" = las reservas que el cliente hizo en este celular; "adminBookings" = todas (solo panel).
 const KEY = 'tourride-cr-v1';
 
 function fresh() {
@@ -46,46 +48,180 @@ function migrate(st) {
   return st;
 }
 
+const ADMIN_ROLES = ['superadmin', 'owner', 'staff'];
+export const isAdminRole = (role) => ADMIN_ROLES.includes(role);
+const ALL_SLICES = ['settings', 'tours', 'rates', 'places', 'partners', 'fleet', 'drivers'];
+
+// Mezcla lo que viene de la base de datos con el estado de la app.
+function applyCatalog(st, cat, withPrivate) {
+  const out = { ...st };
+  if (cat.settings) out.settings = { ...initialSettings, ...st.settings, ...cat.settings };
+  if (cat.tours) out.tours = cat.tours;
+  if (cat.rates) out.rates = cat.rates;
+  if (cat.places) { out.places = cat.places.list || out.places; out.removedPlaces = cat.places.removed || []; }
+  if (withPrivate && cat.partners) out.partners = cat.partners;
+  else if (cat.partners_public) out.partners = cat.partners_public;
+  if (withPrivate && cat.fleet) out.fleet = cat.fleet;
+  else if (cat.fleet_public) out.fleet = cat.fleet_public;
+  if (withPrivate && cat.drivers) out.drivers = cat.drivers;
+  return out;
+}
+
+// Comisión de un tour según el % del socio (el cliente no ve ese %, se calcula aquí en el panel).
+function withCommission(b, partners) {
+  if (b.type !== 'tour' || b.commission) return b;
+  const pct = partners.find((p) => p.id === b.partnerId)?.commission || 0;
+  return { ...b, commission: Math.round(((b.tourAmount || 0) - (b.discount || 0)) * pct / 100) };
+}
+
 const Ctx = createContext(null);
 
 export function StoreProvider({ children }) {
   const [state, setState] = useState(load);
+  const [admin, setAdmin] = useState(null); // { user, profile } cuando alguien entra al panel
+  const [adminBookings, setAdminBookings] = useState([]);
+  const [dayLoads, setDayLoads] = useState({});
+  const [cloudError, setCloudError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const adminRef = useRef(admin);
+  adminRef.current = admin;
+  const dirty = useRef(new Set());
+
+  // copia local (sin datos del panel)
+  useEffect(() => {
+    const { adminOnly, ...keep } = state;
+    try { localStorage.setItem(KEY, JSON.stringify(keep)); } catch (e) { /* ignorar */ }
+  }, [state]);
+
+  // al abrir la app: catálogo de la nube y, si había sesión, el panel
+  const loadPublic = useCallback(async () => {
+    try {
+      const cat = await cloud.fetchCatalog();
+      setState((s) => applyCatalog(s, cat, false));
+    } catch (e) { /* sin señal: se usa la copia local */ }
+  }, []);
+
+  const loadAdmin = useCallback(async () => {
+    const profile = await cloud.fetchMyProfile();
+    if (!profile) { setAdmin(null); return null; }
+    setAdmin({ user: cloud.currentUser(), profile });
+    if (isAdminRole(profile.role)) {
+      const cat = await cloud.fetchCatalog();
+      if (!cat.tours) {
+        // primera vez: se sube a la nube el catálogo que hay en este celular
+        await cloud.saveCatalog(cloud.catalogRows(stateRef.current, new Set(ALL_SLICES)));
+      } else {
+        setState((s) => applyCatalog(s, cat, true));
+      }
+      const partners = cat.partners || stateRef.current.partners;
+      const list = await cloud.fetchBookings();
+      setAdminBookings(list.map((b) => withCommission(b, partners)));
+    } else if (profile.role === 'partner' || profile.role === 'driver') {
+      setAdminBookings(await cloud.fetchBookings());
+    }
+    return profile;
+  }, []);
 
   useEffect(() => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* ignorar */ }
+    loadPublic();
+    if (cloud.currentUser()) loadAdmin().catch(() => setAdmin(null));
+  }, [loadPublic, loadAdmin]);
+
+  // cambios del panel → se guardan en la nube (agrupados, medio segundo después)
+  useEffect(() => {
+    if (!dirty.current.size || !adminRef.current || !isAdminRole(adminRef.current.profile.role)) { dirty.current.clear(); return undefined; }
+    const timer = setTimeout(() => {
+      const slices = new Set(dirty.current);
+      dirty.current.clear();
+      setSyncing(true);
+      cloud.saveCatalog(cloud.catalogRows(stateRef.current, slices))
+        .then(() => setCloudError(''))
+        .catch((e) => setCloudError('No se pudo guardar en la nube: ' + e.message))
+        .finally(() => setSyncing(false));
+    }, 600);
+    return () => clearTimeout(timer);
   }, [state]);
 
   const api = useMemo(() => {
     const set = (key, updater) =>
       setState((s) => ({ ...s, [key]: typeof updater === 'function' ? updater(s[key]) : updater }));
+    const setCat = (key) => (updater) => { dirty.current.add(key); set(key, updater); };
     return {
       ...state,
+      admin, adminBookings, dayLoads, cloudError, syncing,
       t: makeT(state.lang),
       setLang: (l) => set('lang', l),
       setProfile: (p) => set('profile', p),
-      setSettings: (u) => set('settings', u),
-      setTours: (u) => set('tours', u),
-      setPartners: (u) => set('partners', u),
-      setRates: (u) => set('rates', u),
-      setPlaces: (u) => set('places', u),
-      setFleet: (u) => set('fleet', u),
-      setDrivers: (u) => set('drivers', u),
-      removePlace: (name) => setState((s) => ({ ...s, places: s.places.filter((z) => z !== name), removedPlaces: [...(s.removedPlaces || []), name] })),
-      renamePlace: (oldName, newName) => setState((s) => ({
-        ...s,
-        places: s.places.map((z) => (z === oldName ? newName : z)),
-        rates: s.rates.map((r) => ({ ...r, from: r.from === oldName ? newName : r.from, to: r.to === oldName ? newName : r.to })),
-      })),
+      setSettings: setCat('settings'),
+      setTours: setCat('tours'),
+      setPartners: setCat('partners'),
+      setRates: setCat('rates'),
+      setPlaces: setCat('places'),
+      setFleet: setCat('fleet'),
+      setDrivers: setCat('drivers'),
+      removePlace: (name) => { dirty.current.add('places'); setState((s) => ({ ...s, places: s.places.filter((z) => z !== name), removedPlaces: [...(s.removedPlaces || []), name] })); },
+      renamePlace: (oldName, newName) => {
+        dirty.current.add('places'); dirty.current.add('rates');
+        setState((s) => ({
+          ...s,
+          places: s.places.map((z) => (z === oldName ? newName : z)),
+          rates: s.rates.map((r) => ({ ...r, from: r.from === oldName ? newName : r.from, to: r.to === oldName ? newName : r.to })),
+        }));
+      },
       // precio en la moneda principal, y con la otra moneda al lado
       fm: (n) => (state.settings.currency === 'CRC' ? crc(n, state.settings.exchangeRate) : usd(n)),
       fm2: (n) => (state.settings.currency === 'CRC'
         ? `${crc(n, state.settings.exchangeRate)} · ${usd(n)}`
         : `${usd(n)} · ${crc(n, state.settings.exchangeRate)}`),
-      addBooking: (b) => set('bookings', (list) => [b, ...list]),
+
+      // ----- cliente -----
+      // Envía la reserva a la nube; la base de datos da el código definitivo.
+      submitBooking: async (b) => {
+        const code = await cloud.createBooking(b);
+        const saved = { ...b, code, cloud: true };
+        set('bookings', (list) => [saved, ...list]);
+        setDayLoads((d) => { const n = { ...d }; delete n[b.date]; return n; });
+        return saved;
+      },
       updateBooking: (id, patch) => set('bookings', (list) => list.map((b) => (b.id === id ? { ...b, ...patch } : b))),
-      resetDemo: () => setState((s) => ({ ...fresh(), lang: s.lang, profile: s.profile })),
+      // Trae el estado actual (pagada, precio cotizado...) de las reservas de este celular.
+      refreshMyBookings: async () => {
+        const mine = stateRef.current.bookings.filter((b) => b.cloud && !['cancelled', 'completed'].includes(b.status));
+        const found = await Promise.all(mine.map((b) => cloud.getMyBooking(b.code, b.customer.phone).catch(() => null)));
+        const byCode = Object.fromEntries(found.filter(Boolean).map((r) => [r.code, r]));
+        if (!Object.keys(byCode).length) return;
+        set('bookings', (list) => list.map((b) => {
+          const r = byCode[b.code];
+          return r ? { ...b, status: r.status, total: Number(r.total), deposit: Number(r.deposit) } : b;
+        }));
+      },
+      cancelMine: async (b) => {
+        if (b.cloud) await cloud.cancelMyBooking(b.code, b.customer.phone);
+        set('bookings', (list) => list.map((x) => (x.id === b.id ? { ...x, status: 'cancelled' } : x)));
+      },
+      loadDay: (date) => {
+        cloud.fetchDayLoad(date)
+          .then((rows) => setDayLoads((d) => ({ ...d, [date]: rows })))
+          .catch(() => { /* sin señal: se usan las reservas de este celular */ });
+      },
+
+      // ----- panel -----
+      login: async (email, password) => { await cloud.signIn(email, password); return loadAdmin(); },
+      logout: () => { cloud.signOut(); setAdmin(null); setAdminBookings([]); loadPublic(); },
+      reloadAdmin: () => loadAdmin().then(() => setCloudError('')).catch((e) => setCloudError('Sin conexión: ' + e.message)),
+      updateAdminBooking: (id, patch) => {
+        const cur = adminBookings.find((b) => b.id === id);
+        if (!cur) return;
+        const next = { ...cur, ...patch };
+        setAdminBookings((list) => list.map((b) => (b.id === id ? next : b)));
+        cloud.updateBookingRow(next)
+          .then(() => setCloudError(''))
+          .catch((e) => setCloudError('No se pudo guardar la reserva: ' + e.message));
+      },
     };
-  }, [state]);
+  }, [state, admin, adminBookings, dayLoads, cloudError, syncing, loadAdmin, loadPublic]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
@@ -168,3 +304,10 @@ export function unitsFree(typeId, date, time, { fleet, bookings, tours, settings
 }
 
 export const isPerPerson = (typeId) => !!vehicleTypes.find((v) => v.id === typeId)?.perPerson;
+
+// Reservas de un día para calcular cupos y vehículos libres (de la nube si hay señal).
+export function useDayBookings(date) {
+  const { dayLoads, bookings, loadDay } = useStore();
+  useEffect(() => { if (date && !dayLoads[date]) loadDay(date); }, [date, dayLoads[date]]); // eslint-disable-line react-hooks/exhaustive-deps
+  return dayLoads[date] || bookings.filter((b) => b.date === date);
+}

@@ -222,3 +222,10 @@ button.card.vehicle { width: 100%; text-align: left; cursor: pointer; }
 .assign select { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; color: var(--text); color-scheme: dark; }
 .place-row input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); font: inherit; padding: 4px 0; outline: 0; }
 .place-row input:focus { border-bottom: 1px solid var(--gold); }
+
+/* panel: quién entró */
+.admin-who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.admin-who-actions { display: flex; gap: 14px; }
+.card.error { border-color: rgba(255, 110, 110, 0.5); }
+button:disabled { opacity: 0.6; cursor: default; }
+.admin-who .link { width: auto; padding: 4px 0; color: var(--gold); }
