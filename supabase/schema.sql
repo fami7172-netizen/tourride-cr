@@ -113,7 +113,7 @@ grant execute on function public.create_booking(jsonb) to anon, authenticated;
 create or replace function public.get_my_booking(p_code text, p_phone text) returns jsonb
 language sql stable security definer set search_path = public as $$
   select to_jsonb(b) from bookings b
-  where b.code = p_code and regexp_replace(b.customer_phone, '\D', '', 'g') = regexp_replace(p_phone, '\D', '', 'g')
+  where b.code = p_code and right(regexp_replace(b.customer_phone, '\D', '', 'g'), 8) = right(regexp_replace(p_phone, '\D', '', 'g'), 8)
 $$;
 grant execute on function public.get_my_booking(text, text) to anon, authenticated;
 
@@ -123,18 +123,19 @@ language plpgsql security definer set search_path = public as $$
 begin
   update bookings set status = 'cancelled'
   where code = p_code and status in ('pending','quote')
-    and regexp_replace(customer_phone, '\D', '', 'g') = regexp_replace(p_phone, '\D', '', 'g');
+    and right(regexp_replace(customer_phone, '\D', '', 'g'), 8) = right(regexp_replace(p_phone, '\D', '', 'g'), 8);
   return found;
 end $$;
 grant execute on function public.cancel_my_booking(text, text) to anon, authenticated;
 
 -- Ocupación de un día (sin datos personales) para calcular cupos y vehículos libres.
-create or replace function public.day_load(p_date date) returns table (type text, tour_id text, vehicle_type text, time text, people int, status text)
+drop function if exists public.day_load(date);
+create or replace function public.day_load(p_date date) returns table (kind text, tour_id text, vehicle_type text, slot text, people int, state text)
 language sql stable security definer set search_path = public as $$
-  select type, details->>'tourId', vehicle_type, time,
-         coalesce((details->>'adults')::int, 0) + coalesce((details->>'kids')::int, 0) + coalesce((details->>'pax')::int, 0),
-         status
-  from bookings where date = p_date and status <> 'cancelled'
+  select b.type, b.details->>'tourId', b.vehicle_type, b."time",
+         coalesce((b.details->>'adults')::int, 0) + coalesce((b.details->>'kids')::int, 0) + coalesce((b.details->>'pax')::int, 0),
+         b.status
+  from public.bookings b where b.date = p_date and b.status <> 'cancelled'
 $$;
 grant execute on function public.day_load(date) to anon, authenticated;
 
