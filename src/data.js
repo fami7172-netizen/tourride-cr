@@ -8,6 +8,13 @@ export const initialSettings = {
   hotelPickupPerPerson: 10,
   shuttleTimes: ['07:30', '14:00'], // salidas fijas del shuttle compartido
   highSeason: false,
+  currency: 'USD', // moneda principal que ve el cliente: 'USD' o 'CRC'
+  depositPct: 0, // % de depósito para confirmar (0 = sin depósito)
+  tripHours: 4, // horas que se bloquea un vehículo/chofer por cada traslado
+  cancelPolicy: {
+    es: 'Cancelación gratis hasta 24 horas antes. Después de eso no hay reembolso.',
+    en: 'Free cancellation up to 24 hours before. No refunds after that.',
+  },
   coupons: { TOUR10: 10, FIRST20: 20, CRADVENTURE: 15 },
 };
 
@@ -150,4 +157,21 @@ export const initialRates = [
   R('r14', 'La Pavona', 'Tortuguero', 0, 0, 0, 0, 0, 0, 0, 15),
   R('r15', 'Sierpe', 'Bahía Drake', 0, 0, 0, 0, 0, 0, 0, 25),
   R('r16', 'Jacó', 'Montezuma', 0, 0, 0, 0, 0, 0, 0, 45),
+];
+
+// Flota real: cada unidad con su placa. status: 'active' (disponible) o 'shop' (en taller, no se puede reservar)
+export const initialFleet = [
+  { id: 'u1', typeId: 'sedan', plate: 'CR-100001', status: 'active' },
+  { id: 'u2', typeId: 'suv', plate: 'CR-200002', status: 'active' },
+  { id: 'u3', typeId: 'van6', plate: 'CR-300003', status: 'active' },
+  { id: 'u4', typeId: 'van6', plate: 'CR-300004', status: 'active' },
+  { id: 'u5', typeId: 'van15', plate: 'CR-400005', status: 'active' },
+  { id: 'u6', typeId: 'coaster', plate: 'CR-500006', status: 'active' },
+  { id: 'u7', typeId: 'bus', plate: 'CR-600007', status: 'active' },
+];
+
+export const initialDrivers = [
+  { id: 'd1', name: 'Roberto Solano', phone: '50687771111', languages: 'ES, EN', active: true },
+  { id: 'd2', name: 'Andrea Vargas', phone: '50687772222', languages: 'ES, EN, FR', active: true },
+  { id: 'd3', name: 'Luis Mora', phone: '50687773333', languages: 'ES, EN', active: true },
 ];

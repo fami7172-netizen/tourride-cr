@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StoreProvider, useStore, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode } from './store.jsx';
-import { vehicleTypes, zones } from './data.js';
+import { StoreProvider, useStore, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
+import { vehicleTypes } from './data.js';
 import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
@@ -107,10 +107,12 @@ export function tourPrices(tour, settings) {
 }
 
 // Opciones de transporte que sirven para la ruta y el grupo, de la más barata a la más cara.
-function transferOptions(rate, pax, bags) {
+// Los vehículos privados solo salen si hay una unidad libre (no en taller, no ocupada a esa hora).
+function transferOptions(rate, pax, bags, free) {
   if (!rate) return [];
   return vehicleTypes
     .filter((v) => Number(rate[v.id]) > 0 && v.capacity >= pax && v.luggage >= bags)
+    .filter((v) => v.perPerson || free(v.id) > 0)
     // de las busetas/buses privados, solo el que le queda justo al grupo y uno más grande
     .filter((v, i, list) => v.perPerson || v.id === 'suv' || list.filter((x) => !x.perPerson && x.id !== 'suv').slice(0, 2).includes(v))
     .map((v) => ({ v, unit: Number(rate[v.id]), total: v.perPerson ? Number(rate[v.id]) * pax : Number(rate[v.id]) }))
@@ -120,7 +122,8 @@ function transferOptions(rate, pax, bags) {
 // ---------- TRASLADOS ----------
 const OTHER = '__other';
 function TransfersTab({ nav }) {
-  const { t, lang, rates, settings } = useStore();
+  const store = useStore();
+  const { t, lang, rates, settings, places: zones, fm, fm2 } = store;
   const [d, setD] = useState({ from: 'Aeropuerto SJO', to: 'La Fortuna', fromOther: '', toOther: '', date: todayISO(3), time: '10:30', flight: '', pax: 4, bags: 4 });
   const set = (k) => (e) => setD({ ...d, [k]: e && e.target ? e.target.value : e });
   const [chosen, setChosen] = useState(null);
@@ -129,9 +132,9 @@ function TransfersTab({ nav }) {
   const to = d.to === OTHER ? d.toOther.trim() : d.to;
   const rate = findRate(rates, from, to);
   const same = !from || !to || from.toLowerCase() === to.toLowerCase();
-  const options = transferOptions(rate, d.pax, d.bags);
+  const options = transferOptions(rate, d.pax, d.bags, (typeId) => unitsFree(typeId, d.date, d.time, store));
   // sin tarifa: se sugiere el vehículo privado más pequeño que le sirve al grupo y el precio queda "por cotizar"
-  const quoteVehicle = !rate ? vehicleTypes.find((v) => !v.perPerson && v.id !== 'suv' && v.capacity >= d.pax && v.luggage >= d.bags) : null;
+  const quoteVehicle = !rate || options.length === 0 ? vehicleTypes.find((v) => !v.perPerson && v.id !== 'suv' && v.capacity >= d.pax && v.luggage >= d.bags) : null;
   const opt = options.find((o) => o.v.id === chosen) || options[0];
   const vehicle = opt?.v;
   const price = opt?.total ?? null;
@@ -178,7 +181,7 @@ function TransfersTab({ nav }) {
         </div>
         <div className="stack">
 
-        {same ? null : !rate ? (
+        {same ? null : !rate || options.length === 0 ? (
           quoteVehicle ? (
             <>
               <h3 className="section">{t('chooseRide')}</h3>
@@ -205,8 +208,8 @@ function TransfersTab({ nav }) {
                 <div className="vehicle-info">
                   <div className="vehicle-name">{o.v.name[lang]}</div>
                   <div className="muted small">{o.v.note[lang]}</div>
-                  <div className="gold big">{usd(o.total)} · {crc(o.total, settings.exchangeRate)}</div>
-                  {o.v.perPerson && <div className="muted small">{usd(o.unit)} × {d.pax} {t('passengers').toLowerCase()}</div>}
+                  <div className="gold big">{fm2(o.total)}</div>
+                  {o.v.perPerson && <div className="muted small">{fm(o.unit)} × {d.pax} {t('passengers').toLowerCase()}</div>}
                 </div>
                 <span className={'radio' + (o.v.id === vehicle.id ? ' on' : '')} />
               </button>
@@ -214,14 +217,14 @@ function TransfersTab({ nav }) {
           </>
         )}
 
-        {!same && !rate && quoteVehicle && (
+        {!same && (!rate || options.length === 0) && quoteVehicle && (
           <button className="btn-gold" onClick={() => nav.push({ name: 'bookTransfer', draft: { ...d, from, to, time, vehicleId: quoteVehicle.id, price: 0, quote: true } })}>
             {t('requestQuote')}
           </button>
         )}
         {price != null && vehicle && !same ? (
           <button className="btn-gold" onClick={() => nav.push({ name: 'bookTransfer', draft: { ...d, time, vehicleId: vehicle.id, price, unit: opt.unit } })}>
-            {t('bookTransfer')} · {usd(price)}
+            {t('bookTransfer')} · {fm(price)}
           </button>
         ) : (
           !same && (
@@ -279,7 +282,8 @@ function missing(t, fields) {
 
 // ---------- reservar traslado ----------
 function BookTransfer({ draft, nav }) {
-  const { t, lang, settings, profile, setProfile, addBooking } = useStore();
+  const { t, lang, settings, profile, setProfile, addBooking, fm, fm2 } = useStore();
+  const deposit = draft.quote ? 0 : Math.round((draft.price * (settings.depositPct || 0)) / 100);
   const [c, setC] = useState(profile);
   const [pay, setPay] = useState('sinpe');
   const [err, setErr] = useState('');
@@ -293,7 +297,7 @@ function BookTransfer({ draft, nav }) {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       code: newCode(), type: 'transfer', createdAt: new Date().toISOString(), status: draft.quote ? 'quote' : 'pending', payment: pay,
       customer: c, from: draft.from, to: draft.to, date: draft.date, time: draft.time, flight: draft.flight,
-      pax: draft.pax, bags: draft.bags, vehicleId: draft.vehicleId, total: draft.price, commission: 0,
+      pax: draft.pax, bags: draft.bags, vehicleId: draft.vehicleId, total: draft.price, deposit, commission: 0,
     };
     addBooking(b);
     nav.reset();
@@ -311,12 +315,14 @@ function BookTransfer({ draft, nav }) {
       </div>
       <CustomerAndPayment c={c} setC={setC} pay={pay} setPay={setPay} />
       <div className="card totals">
-        {vehicle.perPerson && <div className="tot-row"><span>{usd(draft.unit)} × {draft.pax}</span><span>{usd(draft.price)}</span></div>}
+        {vehicle.perPerson && <div className="tot-row"><span>{fm(draft.unit)} × {draft.pax}</span><span>{fm(draft.price)}</span></div>}
         {draft.quote
           ? <div className="tot-row big"><span>{t('total')}</span><span className="gold">{t('quote')}</span></div>
-          : <div className="tot-row big"><span>{t('total')}</span><span className="gold">{usd(draft.price)} · {crc(draft.price, settings.exchangeRate)}</span></div>}
+          : <div className="tot-row big"><span>{t('total')}</span><span className="gold">{fm2(draft.price)}</span></div>}
+        {deposit > 0 && <div className="tot-row"><span>{t('depositNow', { n: settings.depositPct })}</span><span className="gold">{fm(deposit)}</span></div>}
       </div>
       {draft.quote && <p className="muted small">{t('quoteNote')}</p>}
+      <Policy />
       {err && <p className="error">{err}</p>}
       <button className="btn-gold" onClick={confirm}>{draft.quote ? t('requestQuote') : t('confirm')}</button>
     </div>
@@ -348,10 +354,10 @@ const categories = ['adventure', 'water', 'nature', 'culture'];
 const catIcon = { adventure: '🧗', water: '🌊', nature: '🍃', culture: '🏛️' };
 
 function ExploreTab({ nav }) {
-  const { t, lang, tours, settings } = useStore();
+  const { t, lang, tours, settings, partners, fm } = useStore();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState(null);
-  const list = tours.filter((x) => x.active)
+  const list = tours.filter((x) => x.active && partners.some((p) => p.id === x.partnerId && p.active !== false))
     .filter((x) => !cat || x.category === cat)
     .filter((x) => {
       const s = q.trim().toLowerCase();
@@ -384,7 +390,7 @@ function ExploreTab({ nav }) {
               <Scene scene={tour.scene} photo={'tour-' + tour.id} height={170} rounded={0} />
               <div className="tour-card-body">
                 <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
-                <div className="gold small bold">{t('from')} {usd(p.adult)} · ★ {tour.rating}</div>
+                <div className="gold small bold">{t('from')} {fm(p.adult)} · ★ {tour.rating}</div>
               </div>
             </button>
           );
@@ -397,7 +403,7 @@ function ExploreTab({ nav }) {
 
 // ---------- DETALLE DEL TOUR ----------
 function TourDetail({ id, nav }) {
-  const { t, lang, tours, partners, settings } = useStore();
+  const { t, lang, tours, partners, settings, fm } = useStore();
   const tour = tours.find((x) => x.id === id);
   if (!tour) return <div className="pad"><TopBar title="" onBack={nav.back} /></div>;
   const partner = partners.find((p) => p.id === tour.partnerId);
@@ -439,7 +445,7 @@ function TourDetail({ id, nav }) {
       </div>
       <div className="sticky-cta">
         <button className="btn-gold" onClick={() => nav.push({ name: 'bookTour', id: tour.id })}>
-          {t('bookTour')} · {usd(p.adult)} {t('adult')} / {usd(p.child)} {t('child')}
+          {t('bookTour')} · {fm(p.adult)} {t('adult')} / {fm(p.child)} {t('child')}
         </button>
       </div>
     </>
@@ -448,7 +454,7 @@ function TourDetail({ id, nav }) {
 
 // ---------- RESERVAR TOUR ----------
 function BookTour({ id, nav }) {
-  const { t, lang, tours, partners, settings, profile, setProfile, bookings, addBooking } = useStore();
+  const { t, lang, tours, partners, settings, profile, setProfile, bookings, addBooking, fm, fm2 } = useStore();
   const tour = tours.find((x) => x.id === id);
   const prices = tourPrices(tour, settings);
   const [date, setDate] = useState(todayISO(1));
@@ -478,6 +484,7 @@ function BookTour({ id, nav }) {
   const pickupAmount = pickup ? people * settings.hotelPickupPerPerson : 0;
   const total = tourAmount - discount + pickupAmount;
   const partner = partners.find((p) => p.id === tour.partnerId);
+  const deposit = Math.round((total * (settings.depositPct || 0)) / 100);
   const commission = Math.round(((tourAmount - discount) * (partner?.commission || 0)) / 100);
 
   const applyCoupon = () => {
@@ -498,7 +505,7 @@ function BookTour({ id, nav }) {
       code: newCode(), type: 'tour', createdAt: new Date().toISOString(), status: 'pending', payment: pay,
       customer: c, tourId: tour.id, tourName: tour.name, partnerId: tour.partnerId, location: tour.location,
       date, time, adults, kids, pickup, hotel: pickup ? hotel : '', coupon: discountPct ? coupon.toUpperCase() : '',
-      tourAmount, discount, pickupAmount, total, commission,
+      tourAmount, discount, pickupAmount, total, deposit, commission,
     };
     addBooking(b);
     nav.reset();
@@ -525,8 +532,8 @@ function BookTour({ id, nav }) {
       </div>
       <p className="muted small">{t('seats', { n: left })}</p>
       <div className="grid2">
-        <Counter label={`${t('adults')} · ${usd(prices.adult)}`} value={adults} min={1} max={20} onChange={setAdults} />
-        <Counter label={`${t('children')} · ${usd(prices.child)}`} value={kids} min={0} max={20} onChange={setKids} />
+        <Counter label={`${t('adults')} · ${fm(prices.adult)}`} value={adults} min={1} max={20} onChange={setAdults} />
+        <Counter label={`${t('children')} · ${fm(prices.child)}`} value={kids} min={0} max={20} onChange={setKids} />
       </div>
       <label className="card toggle">
         <input type="checkbox" checked={pickup} onChange={(e) => setPickup(e.target.checked)} />
@@ -543,11 +550,13 @@ function BookTour({ id, nav }) {
       </div>
       {couponMsg && <p className={discountPct ? 'ok small' : 'error small'}>{couponMsg}</p>}
       <div className="card totals">
-        <div className="tot-row"><span>{t('subtotal')}</span><span>{usd(tourAmount)}</span></div>
-        {discount > 0 && <div className="tot-row"><span>{t('discount')}</span><span>−{usd(discount)}</span></div>}
-        {pickupAmount > 0 && <div className="tot-row"><span>{t('pickup')}</span><span>{usd(pickupAmount)}</span></div>}
-        <div className="tot-row big"><span>{t('total')}</span><span className="gold">{usd(total)} · {crc(total, settings.exchangeRate)}</span></div>
+        <div className="tot-row"><span>{t('subtotal')}</span><span>{fm(tourAmount)}</span></div>
+        {discount > 0 && <div className="tot-row"><span>{t('discount')}</span><span>−{fm(discount)}</span></div>}
+        {pickupAmount > 0 && <div className="tot-row"><span>{t('pickup')}</span><span>{fm(pickupAmount)}</span></div>}
+        <div className="tot-row big"><span>{t('total')}</span><span className="gold">{fm2(total)}</span></div>
+        {deposit > 0 && <div className="tot-row"><span>{t('depositNow', { n: settings.depositPct })}</span><span className="gold">{fm(deposit)}</span></div>}
       </div>
+      <Policy />
       {err && <p className="error">{err}</p>}
       <button className="btn-gold" onClick={confirm}>{t('confirm')}</button>
     </div>
@@ -555,15 +564,29 @@ function BookTour({ id, nav }) {
 }
 
 // ---------- RESERVA CONFIRMADA ----------
-export function money(b, t) {
-  return b.status === 'quote' ? t('quote') : usd(b.total);
+export function money(b, t, fm) {
+  return b.status === 'quote' ? t('quote') : fm(b.total);
+}
+
+// Política de cancelación y depósito que ve el cliente antes de confirmar
+function Policy() {
+  const { t, lang, settings } = useStore();
+  const text = settings.cancelPolicy?.[lang] || settings.cancelPolicy?.es;
+  if (!text && !settings.depositPct) return null;
+  return (
+    <div className="card note small">
+      <strong>{t('policyTitle')}</strong>
+      {text && <p style={{ margin: '4px 0 0' }}>{text}</p>}
+      {settings.depositPct > 0 && <p style={{ margin: '4px 0 0' }}>{t('depositNote', { n: settings.depositPct })}</p>}
+    </div>
+  );
 }
 
 export function bookingTitle(b, lang) {
   return b.type === 'tour' ? b.tourName[lang] : `${zoneLabel(b.from, lang)} → ${zoneLabel(b.to, lang)}`;
 }
 
-function bookingText(b, t, lang, rate) {
+function bookingText(b, t, lang, fm2) {
   const lines = [
     `TourRide CR · ${b.code}`,
     b.type === 'tour' ? `${t('tour')}: ${b.tourName[lang]} (${b.location})` : `${t('transfer')}: ${zoneLabel(b.from, lang)} → ${zoneLabel(b.to, lang)}`,
@@ -571,20 +594,20 @@ function bookingText(b, t, lang, rate) {
     b.type === 'tour' ? `${b.adults} ${t('adults').toLowerCase()}, ${b.kids} ${t('children').toLowerCase()}` : `${b.pax} ${t('passengers').toLowerCase()}`,
     b.hotel ? `${t('hotel')}: ${b.hotel}` : '',
     b.flight ? `${t('flight').split(' (')[0]}: ${b.flight}` : '',
-    b.status === 'quote' ? `${t('total')}: ${t('quote')}` : `${t('total')}: ${usd(b.total)} (${crc(b.total, rate)})`,
+    b.status === 'quote' ? `${t('total')}: ${t('quote')}` : `${t('total')}: ${fm2(b.total)}`,
     `${t('status')}: ${t(b.status)}`,
   ];
   return lines.filter(Boolean).join('\n');
 }
 
 function BookingDone({ id, nav }) {
-  const { t, lang, bookings, settings, updateBooking } = useStore();
+  const { t, lang, bookings, settings, updateBooking, fm, fm2 } = useStore();
   const [ask, setAsk] = useState(false);
   const b = bookings.find((x) => x.id === id);
   if (!b) return null;
   const vehicle = vehicleTypes.find((v) => v.id === b.vehicleId);
   const qrValue = `TOURRIDE|${b.code}|${b.type}|${b.date}|${b.time}|${b.customer.name}`;
-  const text = bookingText(b, t, lang, settings.exchangeRate);
+  const text = bookingText(b, t, lang, fm2);
 
   return (
     <div className="pad stack done narrow">
@@ -600,11 +623,12 @@ function BookingDone({ id, nav }) {
         <Info icon={b.type === 'tour' ? <Icon.compass width="18" height="18" /> : <Icon.plane />} text={bookingTitle(b, lang)} />
         <Info icon={<Icon.calendar width="18" height="18" />} text={`${fmtDate(b.date, lang)} · ${fmtTime(b.time, lang)}`} />
         {b.type === 'tour'
-          ? <Info icon={<Icon.users />} text={`${b.adults} ${t('adults').toLowerCase()} · ${b.kids} ${t('children').toLowerCase()}`} strong={money(b, t)} />
-          : <Info icon={<Icon.car width="18" height="18" />} text={`${vehicle?.name[lang]} · ${b.pax} ${t('passengers').toLowerCase()}`} strong={money(b, t)} />}
+          ? <Info icon={<Icon.users />} text={`${b.adults} ${t('adults').toLowerCase()} · ${b.kids} ${t('children').toLowerCase()}`} strong={money(b, t, fm)} />
+          : <Info icon={<Icon.car width="18" height="18" />} text={`${vehicle?.name[lang]} · ${b.pax} ${t('passengers').toLowerCase()}`} strong={money(b, t, fm)} />}
         <div className="info"><span className="row-icon">●</span><span>{t('status')}: <strong className={'st-' + b.status}>{t(b.status)}</strong></span></div>
       </div>
       {b.status === 'quote' && <p className="muted small">{t('quoteNote')}</p>}
+      {b.status === 'pending' && b.deposit > 0 && <p className="muted small">{t('depositNote', { n: settings.depositPct })} {t('depositNow', { n: settings.depositPct })}: <strong className="gold">{fm(b.deposit)}</strong></p>}
       {b.status === 'pending' && b.payment === 'sinpe' && <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>}
       <a className="btn-gold" href={waLink(settings.whatsapp, text)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('shareWhatsapp')}</a>
       <button className="btn-outline" onClick={() => nav.reset('bookings')}>{t('seeBookings')}</button>
@@ -624,7 +648,7 @@ function BookingDone({ id, nav }) {
 
 // ---------- MIS RESERVAS ----------
 function BookingsTab({ nav }) {
-  const { t, lang, bookings, profile } = useStore();
+  const { t, lang, bookings, profile, fm } = useStore();
   // Mientras no haya cuentas de usuario, se muestran las reservas hechas en este celular.
   const mine = bookings;
   return (
@@ -643,7 +667,7 @@ function BookingsTab({ nav }) {
             <span className={'badge st-' + b.status}>{t(b.status)}</span>
           </div>
           <div className="bold">{bookingTitle(b, lang)}</div>
-          <div className="muted small">{fmtDate(b.date, lang)} · {fmtTime(b.time, lang)} · {money(b, t)}</div>
+          <div className="muted small">{fmtDate(b.date, lang)} · {fmtTime(b.time, lang)} · {money(b, t, fm)}</div>
         </button>
       ))}
       {profile.name && <p className="muted small center">{profile.name}</p>}

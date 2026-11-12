@@ -213,3 +213,12 @@ button.card.vehicle { width: 100%; text-align: left; cursor: pointer; }
 .lang-toggle { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; display: flex; background: rgba(11, 42, 31, 0.7); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 3px; z-index: 2; }
 .lang-toggle button { background: none; border: 0; color: var(--text); font-weight: 700; font-size: 13px; padding: 7px 12px; border-radius: 999px; cursor: pointer; min-width: 44px; }
 .lang-toggle button.on { background: var(--gold); color: #1f2a12; }
+
+.card.paused { opacity: .6; }
+.danger-text { color: var(--danger); }
+.btn-outline.danger-outline { border-color: rgba(255,138,122,.5); color: var(--danger); }
+.assign { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.assign a { grid-column: 1 / -1; }
+.assign select { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; color: var(--text); color-scheme: dark; }
+.place-row input { flex: 1; min-width: 0; background: transparent; border: 0; color: var(--text); font: inherit; padding: 4px 0; outline: 0; }
+.place-row input:focus { border-bottom: 1px solid var(--gold); }

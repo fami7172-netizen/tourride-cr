@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useStore, usd, crc, fmtDate, fmtTime, waLink } from './store.jsx';
-import { vehicleTypes, zones } from './data.js';
+import { useStore, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf } from './store.jsx';
+import { vehicleTypes } from './data.js';
 import { Icon, Field, Modal } from './ui.jsx';
 
 // Panel del dueño (solo en español). Entrar desde Perfil → Panel del dueño (PIN inicial 1234).
@@ -8,7 +8,9 @@ const sections = [
   ['summary', 'Resumen'],
   ['bookings', 'Reservas'],
   ['tours', 'Tours'],
+  ['fleet', 'Flota y choferes'],
   ['partners', 'Socios'],
+  ['places', 'Lugares'],
   ['rates', 'Tarifas'],
   ['settings', 'Ajustes'],
 ];
@@ -30,6 +32,8 @@ export default function Admin({ nav }) {
       {sec === 'bookings' && <Bookings />}
       {sec === 'tours' && <Tours nav={nav} />}
       {sec === 'partners' && <Partners nav={nav} />}
+      {sec === 'fleet' && <Fleet nav={nav} />}
+      {sec === 'places' && <Places nav={nav} />}
       {sec === 'rates' && <Rates nav={nav} />}
       {sec === 'settings' && <Settings nav={nav} />}
     </div>
@@ -84,7 +88,7 @@ function Stat({ label, value, sub }) {
 const statuses = [['quote', 'Por cotizar'], ['pending', 'Pendiente de pago'], ['paid', 'Pagada'], ['completed', 'Completada'], ['cancelled', 'Cancelada']];
 
 function Bookings() {
-  const { bookings, updateBooking, partners } = useStore();
+  const { bookings, updateBooking, partners, fleet, drivers, tours, settings } = useStore();
   const [q, setQ] = useState('');
   const list = bookings.filter((b) => {
     const s = q.trim().toLowerCase();
@@ -122,6 +126,9 @@ function Bookings() {
               </select>
             </div>
             {b.status === 'quote' && <QuoteBox b={b} />}
+            {(b.type === 'transfer' ? !vehicleTypes.find((v) => v.id === b.vehicleId)?.perPerson : b.pickup) && b.status !== 'cancelled' && (
+              <Assign b={b} bookings={bookings} fleet={fleet} drivers={drivers} tours={tours} settings={settings} onChange={(patch) => updateBooking(b.id, patch)} />
+            )}
             <a className="small gold" href={waLink(b.customer.phone, `Hola ${b.customer.name}, te escribimos de TourRide CR sobre tu reserva ${b.code}.`)} target="_blank" rel="noreferrer">Escribir al cliente por WhatsApp ↗</a>
           </div>
         );
@@ -138,7 +145,8 @@ const emptyTour = {
 };
 
 function Tours({ nav }) {
-  const { tours, setTours } = useStore();
+  const { tours, setTours, partners } = useStore();
+  const partnerOk = (x) => partners.some((p) => p.id === x.partnerId && p.active !== false);
   const [edit, setEdit] = useState(null);
   if (edit) {
     return (
@@ -161,7 +169,7 @@ function Tours({ nav }) {
         <div key={x.id} className="card admin-row">
           <div>
             <div className="bold">{x.name.es || '(sin nombre)'}</div>
-            <div className="muted small">{x.location} · {usd(x.priceAdult)} / {usd(x.priceChild)} · {x.active ? 'Visible' : 'Oculto'}</div>
+            <div className="muted small">{x.location} · {usd(x.priceAdult)} / {usd(x.priceChild)} · {!partnerOk(x) ? <span className="danger-text">Oculto: socio pausado o quitado</span> : x.active ? 'Visible' : 'Oculto'}</div>
           </div>
           <div className="row-actions">
             <button className="chip" onClick={() => setTours((l) => l.map((y) => (y.id === x.id ? { ...y, active: !y.active } : y)))}>{x.active ? 'Ocultar' : 'Mostrar'}</button>
@@ -209,7 +217,10 @@ function TourForm({ tour, onSave, onCancel, onDelete }) {
           </select>
         </Field>
         <Field label="Socio">
-          <select value={f.partnerId} onChange={set('partnerId')}>{partners.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
+          <select value={f.partnerId} onChange={set('partnerId')}>
+            {!partners.some((p) => p.id === f.partnerId) && <option value={f.partnerId}>— Escoge un socio —</option>}
+            {partners.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active === false ? ' (pausado)' : ''}</option>)}
+          </select>
         </Field>
         <Field label="Ilustración">
           <select value={f.scene} onChange={set('scene')}>
@@ -252,13 +263,18 @@ function TourForm({ tour, onSave, onCancel, onDelete }) {
 }
 
 function Partners({ nav }) {
-  const { partners, setPartners } = useStore();
+  const { partners, setPartners, tours } = useStore();
+  const [del, setDel] = useState(null);
   const update = (id, k, v) => setPartners((l) => l.map((p) => (p.id === id ? { ...p, [k]: v } : p)));
   return (
     <>
       <button className="btn-gold" onClick={() => setPartners((l) => [...l, { id: 'p' + Date.now(), name: 'Nuevo socio', contact: '', whatsapp: '', commission: 20, active: true }])}>+ Agregar socio</button>
       {partners.map((p) => (
-        <div key={p.id} className="card form">
+        <div key={p.id} className={'card form' + (p.active === false ? ' paused' : '')}>
+          <div className="bi-top">
+            <span className={p.active === false ? 'badge st-cancelled' : 'badge st-paid'}>{p.active === false ? 'Pausado' : 'Activo'}</span>
+            <span className="muted small">{tours.filter((x) => x.partnerId === p.id).length} tours</span>
+          </div>
           <Field label="Empresa"><input value={p.name} onChange={(e) => update(p.id, 'name', e.target.value)} /></Field>
           <div className="grid2">
             <Field label="Contacto"><input value={p.contact} onChange={(e) => update(p.id, 'contact', e.target.value)} /></Field>
@@ -266,20 +282,33 @@ function Partners({ nav }) {
             <Field label="Comisión (%)"><input type="number" value={p.commission} onChange={(e) => update(p.id, 'commission', Number(e.target.value))} /></Field>
           </div>
           {p.whatsapp && <a className="small gold" href={waLink(p.whatsapp, `Hola ${p.contact}, te escribo de TourRide CR.`)} target="_blank" rel="noreferrer">Escribir por WhatsApp ↗</a>}
+          <div className="grid2">
+            <button className="btn-outline" onClick={() => update(p.id, 'active', p.active === false)}>{p.active === false ? 'Activar' : 'Pausar'}</button>
+            <button className="btn-outline danger-outline" onClick={() => setDel(p)}>Quitar socio</button>
+          </div>
         </div>
       ))}
-      <p className="muted small">Los cambios se guardan solos.</p>
+      <p className="muted small">Los cambios se guardan solos. Si pausas o quitas un socio, sus tours dejan de verse para los clientes.</p>
+      {del && (
+        <Modal onClose={() => setDel(null)}>
+          <p>¿Quitar a "{del.name}"? Sus tours se ocultan y las reservas ya hechas no se borran. Si solo es por un tiempo, mejor usa "Pausar".</p>
+          <div className="grid2">
+            <button className="btn-outline" onClick={() => setDel(null)}>No</button>
+            <button className="btn-gold danger-bg" onClick={() => { setPartners((l) => l.filter((x) => x.id !== del.id)); setDel(null); nav.toast('Socio quitado'); }}>Sí, quitar</button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }
 
 function Rates({ nav }) {
-  const { rates, setRates } = useStore();
+  const { rates, setRates, places: zones } = useStore();
   const update = (id, k, v) => setRates((l) => l.map((r) => (r.id === id ? { ...r, [k]: v } : r)));
   return (
     <>
       <p className="muted small">Precio en USD. Vehículos privados: precio por viaje. Shuttle compartido y lancha: precio por persona. Pon 0 si ese transporte no va por esa ruta. La ruta sirve en ambos sentidos y los cambios se guardan solos.</p>
-      <button className="btn-gold" onClick={() => setRates((l) => [...l, { id: 'r' + Date.now(), from: zones[0], to: zones[3], sedan: 0, van6: 0, van15: 0, coaster: 0, bus: 0 }])}>+ Agregar ruta</button>
+      <button className="btn-gold" onClick={() => setRates((l) => [...l, { id: 'r' + Date.now(), from: zones[0], to: zones[1], ...Object.fromEntries(vehicleTypes.map((v) => [v.id, 0])) }])}>+ Agregar ruta</button>
       {rates.map((r) => (
         <div key={r.id} className="card form">
           <div className="grid2">
@@ -298,7 +327,7 @@ function Rates({ nav }) {
 
 function Settings({ nav }) {
   const { settings, setSettings, resetDemo } = useStore();
-  const [f, setF] = useState({ ...settings, couponsText: Object.entries(settings.coupons).map(([k, v]) => `${k}=${v}`).join('\n') });
+  const [f, setF] = useState({ ...settings, cancelPolicy: settings.cancelPolicy || { es: '', en: '' }, couponsText: Object.entries(settings.coupons).map(([k, v]) => `${k}=${v}`).join('\n') });
   const [ask, setAsk] = useState(false);
   const set = (k, num) => (e) => setF({ ...f, [k]: num ? Number(e.target.value) : e.target.value });
   const save = () => {
@@ -321,6 +350,19 @@ function Settings({ nav }) {
         <Field label="Salidas del shuttle (ej: 07:30, 14:00)"><input value={(f.shuttleTimes || []).join(', ')} onChange={(e) => setF({ ...f, shuttleTimes: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} /></Field>
         <Field label="PIN del panel"><input value={f.adminPin} inputMode="numeric" onChange={set('adminPin')} /></Field>
       </div>
+      <div className="grid2">
+        <Field label="Moneda principal para el cliente">
+          <select value={f.currency || 'USD'} onChange={set('currency')}>
+            <option value="USD">Dólares ($)</option>
+            <option value="CRC">Colones (₡)</option>
+          </select>
+        </Field>
+        <Field label="Depósito para confirmar (%)"><input type="number" min="0" max="100" value={f.depositPct || 0} onChange={set('depositPct', true)} /></Field>
+        <Field label="Horas que dura un traslado"><input type="number" min="1" value={f.tripHours || 4} onChange={set('tripHours', true)} /></Field>
+      </div>
+      <p className="muted small">Los precios se escriben siempre en dólares; la app los convierte con el tipo de cambio. Depósito 0 = no se pide depósito. Las horas del traslado sirven para que no se asigne el mismo vehículo o chofer a dos viajes que se cruzan.</p>
+      <Field label="Política de cancelación (español)"><textarea rows="2" value={f.cancelPolicy.es} onChange={(e) => setF({ ...f, cancelPolicy: { ...f.cancelPolicy, es: e.target.value } })} /></Field>
+      <Field label="Política de cancelación (inglés)"><textarea rows="2" value={f.cancelPolicy.en} onChange={(e) => setF({ ...f, cancelPolicy: { ...f.cancelPolicy, en: e.target.value } })} /></Field>
       <label className="toggle"><input type="checkbox" checked={f.highSeason} onChange={(e) => setF({ ...f, highSeason: e.target.checked })} /> Temporada alta (usa precios altos)</label>
       <Field label="Cupones (CÓDIGO=porcentaje, uno por línea)"><textarea rows="3" value={f.couponsText} onChange={set('couponsText')} /></Field>
       <button className="btn-gold" onClick={save}>Guardar ajustes</button>
@@ -357,5 +399,129 @@ function QuoteBox({ b }) {
         Guardar y enviar precio
       </a>
     </div>
+  );
+}
+
+// ---------- Asignar unidad y chofer a una reserva ----------
+function Assign({ b, bookings, fleet, drivers, tours, settings, onChange }) {
+  const clashes = bookings.filter((x) => overlaps(b, x, tours, settings));
+  const unitBusy = (id) => clashes.find((x) => x.unitId === id);
+  const driverBusy = (id) => clashes.find((x) => x.driverId === id);
+  const people = peopleOf(b);
+  const units = fleet.filter((u) => u.status === 'active' && (vehicleTypes.find((v) => v.id === u.typeId)?.capacity || 0) >= people);
+  const unit = fleet.find((u) => u.id === b.unitId);
+  const driver = drivers.find((d) => d.id === b.driverId);
+  const typeName = (u) => vehicleTypes.find((v) => v.id === u.typeId)?.name.es || '';
+  return (
+    <div className="assign">
+      <Field label="Vehículo">
+        <select value={b.unitId || ''} onChange={(e) => onChange({ unitId: e.target.value || null })}>
+          <option value="">— Sin asignar —</option>
+          {unit && !units.includes(unit) && <option value={unit.id}>{unit.plate} · {typeName(unit)} (no disponible)</option>}
+          {units.map((u) => {
+            const busy = unitBusy(u.id);
+            return <option key={u.id} value={u.id} disabled={!!busy}>{u.plate} · {typeName(u)}{busy ? ` (ocupado ${busy.code})` : ''}</option>;
+          })}
+        </select>
+      </Field>
+      <Field label="Chofer">
+        <select value={b.driverId || ''} onChange={(e) => onChange({ driverId: e.target.value || null })}>
+          <option value="">— Sin asignar —</option>
+          {drivers.filter((d) => d.active !== false || d.id === b.driverId).map((d) => {
+            const busy = driverBusy(d.id);
+            return <option key={d.id} value={d.id} disabled={!!busy}>{d.name}{busy ? ` (ocupado ${busy.code})` : ''}</option>;
+          })}
+        </select>
+      </Field>
+      {driver && unit && (
+        <a className="small gold" href={waLink(driver.phone, `Hola ${driver.name}, viaje ${b.code}: ${fmtDate(b.date, 'es')} ${fmtTime(b.time, 'es')}. ${b.type === 'tour' ? 'Recoger en ' + (b.hotel || '') + ' para ' + b.tourName.es : b.from + ' → ' + b.to}${b.flight ? ', vuelo ' + b.flight : ''}. Cliente: ${b.customer.name} (${b.customer.phone}), ${people} personas. Unidad ${unit.plate}.`)} target="_blank" rel="noreferrer">
+          Enviar el viaje al chofer por WhatsApp ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+// ---------- Flota y choferes ----------
+function Fleet({ nav }) {
+  const { fleet, setFleet, drivers, setDrivers } = useStore();
+  const upU = (id, k, v) => setFleet((l) => l.map((u) => (u.id === id ? { ...u, [k]: v } : u)));
+  const upD = (id, k, v) => setDrivers((l) => l.map((d) => (d.id === id ? { ...d, [k]: v } : d)));
+  const privateTypes = vehicleTypes.filter((v) => !v.perPerson);
+  return (
+    <>
+      <p className="muted small">Cada vehículo con su placa. Si lo marcas <strong>En taller</strong>, los clientes no lo pueden reservar. Si no tienes ninguna unidad de un tipo, ese tipo no se ofrece. Los cambios se guardan solos.</p>
+      <h3 className="section">Vehículos</h3>
+      {fleet.map((u) => (
+        <div key={u.id} className={'card form' + (u.status === 'shop' ? ' paused' : '')}>
+          <div className="grid2">
+            <Field label="Tipo">
+              <select value={u.typeId} onChange={(e) => upU(u.id, 'typeId', e.target.value)}>{privateTypes.map((v) => <option key={v.id} value={v.id}>{v.name.es}</option>)}</select>
+            </Field>
+            <Field label="Placa"><input value={u.plate} onChange={(e) => upU(u.id, 'plate', e.target.value.toUpperCase())} /></Field>
+          </div>
+          <div className="grid2">
+            <button className={u.status === 'shop' ? 'btn-gold' : 'btn-outline'} onClick={() => upU(u.id, 'status', u.status === 'shop' ? 'active' : 'shop')}>
+              {u.status === 'shop' ? '🔧 En taller (tocar para activar)' : '✅ Disponible'}
+            </button>
+            <button className="btn-outline danger-outline" onClick={() => setFleet((l) => l.filter((x) => x.id !== u.id))}>Quitar</button>
+          </div>
+        </div>
+      ))}
+      <button className="btn-gold" onClick={() => setFleet((l) => [...l, { id: 'u' + Date.now(), typeId: 'van6', plate: '', status: 'active' }])}>+ Agregar vehículo</button>
+
+      <h3 className="section">Choferes</h3>
+      {drivers.map((d) => (
+        <div key={d.id} className={'card form' + (d.active === false ? ' paused' : '')}>
+          <Field label="Nombre"><input value={d.name} onChange={(e) => upD(d.id, 'name', e.target.value)} /></Field>
+          <div className="grid2">
+            <Field label="WhatsApp"><input value={d.phone} inputMode="tel" onChange={(e) => upD(d.id, 'phone', e.target.value)} /></Field>
+            <Field label="Idiomas"><input value={d.languages} onChange={(e) => upD(d.id, 'languages', e.target.value)} /></Field>
+          </div>
+          <div className="grid2">
+            <button className="btn-outline" onClick={() => upD(d.id, 'active', d.active === false)}>{d.active === false ? 'Activar' : 'Pausar (vacaciones)'}</button>
+            <button className="btn-outline danger-outline" onClick={() => setDrivers((l) => l.filter((x) => x.id !== d.id))}>Quitar</button>
+          </div>
+        </div>
+      ))}
+      <button className="btn-gold" onClick={() => setDrivers((l) => [...l, { id: 'd' + Date.now(), name: '', phone: '', languages: 'ES', active: true }])}>+ Agregar chofer</button>
+    </>
+  );
+}
+
+// ---------- Lugares (aeropuertos, hoteles, zonas) ----------
+function Places({ nav }) {
+  const { places, setPlaces, removePlace, renamePlace, rates } = useStore();
+  const [name, setName] = useState('');
+  const [edit, setEdit] = useState({});
+  const add = () => {
+    const n = name.trim();
+    if (!n || places.includes(n)) return;
+    setPlaces((l) => [...l, n]);
+    setName('');
+    nav.toast('Lugar agregado');
+  };
+  return (
+    <>
+      <p className="muted small">Son los lugares que el cliente ve en Origen y Destino. Para que un lugar nuevo tenga precio, agrégale una ruta en <strong>Tarifas</strong>; si no tiene ruta, el cliente puede pedir cotización. Escribe "Aeropuerto …" al inicio para que en inglés salga como "… Airport".</p>
+      <div className="coupon">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Hotel Tabacón, Puerto Viejo" />
+        <button className="btn-gold small-btn" onClick={add}>Agregar</button>
+      </div>
+      <div className="card list">
+        {places.map((z) => {
+          const used = rates.filter((r) => r.from === z || r.to === z).length;
+          return (
+            <div key={z} className="info place-row">
+              <input value={edit[z] ?? z} onChange={(e) => setEdit({ ...edit, [z]: e.target.value })}
+                onBlur={() => { const n = (edit[z] ?? z).trim(); if (n && n !== z && !places.includes(n)) { renamePlace(z, n); nav.toast('Nombre cambiado'); } setEdit({ ...edit, [z]: undefined }); }} />
+              <small className="muted">{used} rutas</small>
+              <button className="chip" disabled={used > 0} title={used ? 'Primero quita sus rutas en Tarifas' : ''} onClick={() => removePlace(z)}>Quitar</button>
+            </div>
+          );
+        })}
+      </div>
+      <p className="muted small">Un lugar con rutas no se puede quitar: primero quita sus rutas en Tarifas.</p>
+    </>
   );
 }
