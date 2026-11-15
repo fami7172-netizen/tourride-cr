@@ -229,3 +229,74 @@ button.card.vehicle { width: 100%; text-align: left; cursor: pointer; }
 .card.error { border-color: rgba(255, 110, 110, 0.5); }
 button:disabled { opacity: 0.6; cursor: default; }
 .admin-who .link { width: auto; padding: 4px 0; color: var(--gold); }
+
+/* ===== Computadora: cara de página web ===== */
+.desk-only { display: none !important; }
+@media (min-width: 720px) and (max-width: 959px) {
+  .detail-layout { max-width: 720px; margin: 0 auto; }
+}
+@media (min-width: 960px) {
+  .desk-only { display: revert !important; }
+  .mobile-only, .bottom-nav, .hero .lang-toggle { display: none !important; }
+  html, body { background: var(--bg); }
+  .app { max-width: none; box-shadow: none; }
+  .screen.with-nav, .screen { padding-bottom: 0; }
+  .pad { max-width: 1200px; margin-left: auto; margin-right: auto; padding: 28px 32px; }
+  .pad.narrow { max-width: 784px; }
+  .pad.narrow-wide { max-width: 1044px; }
+
+  /* menú de arriba */
+  .topnav { position: sticky; top: 0; z-index: 20; background: rgba(9, 36, 26, 0.88); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .topnav-in { max-width: 1200px; margin: 0 auto; padding: 12px 32px; display: flex !important; align-items: center; gap: 24px; }
+  .brand { display: flex; align-items: center; gap: 10px; background: none; border: 0; cursor: pointer; font-weight: 800; font-size: 19px; padding: 0; }
+  .brand img { border-radius: 10px; }
+  .topnav-links { display: flex; gap: 4px; margin-left: auto; }
+  .topnav-links button { background: none; border: 0; color: var(--muted); font-weight: 600; padding: 9px 14px; border-radius: 999px; cursor: pointer; }
+  .topnav-links button:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .topnav-links button.on { color: var(--gold); background: rgba(242, 196, 90, 0.12); }
+  .lang-toggle.inline { position: static; }
+  .topnav-cta { width: auto !important; min-height: 40px !important; padding: 0 18px !important; font-size: 14px; }
+
+  /* portadas grandes, de lado a lado */
+  .hero .scene { height: 440px !important; }
+  .hero-text { left: max(32px, calc((100% - 1200px) / 2 + 32px)); right: auto; bottom: 120px; max-width: 640px; }
+  .hero-text h1 { font-size: 56px; }
+  .hero-text p { font-size: 20px; }
+  .hero-logo { width: 64px; height: 64px; }
+  .hero-shade { background: linear-gradient(90deg, rgba(8, 32, 23, 0.75), rgba(8, 32, 23, 0.15) 60%), linear-gradient(180deg, rgba(11, 42, 31, 0) 50%, rgba(11, 42, 31, 0.9)); }
+  /* el buscador de traslados sube sobre la foto */
+  .transfer-layout { position: relative; margin-top: -96px; padding-top: 0; grid-template-columns: 5fr 6fr; }
+  .transfer-layout > .stack:first-child { background: rgba(15, 53, 39, 0.96); border: 1px solid var(--line); border-radius: 24px; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+  .transfer-layout > .stack:last-child { padding-top: 110px; }
+  .transfer-layout > .stack:last-child > .section:first-child { margin-top: 0 !important; }
+  .detail-hero { height: 420px !important; }
+
+  /* portada: por qué elegirnos + tours */
+  .home-extras { display: block !important; padding-top: 8px; }
+  .why { display: grid !important; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 22px 0 8px; border-top: 1px solid var(--line); }
+  .why-item { display: flex; gap: 14px; align-items: center; }
+  .why-icon { font-size: 26px; width: 52px; height: 52px; border-radius: 16px; background: var(--card); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 34px 0 14px; }
+  .section-head h2 { font-size: 26px; }
+  .link-gold { background: none; border: 0; color: var(--gold); font-weight: 700; cursor: pointer; }
+  .tour-card { transition: transform .15s ease, box-shadow .15s ease; }
+  .tour-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(0,0,0,.3); }
+
+  /* detalle del tour en dos columnas */
+  .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 32px; align-items: start; }
+  .detail-title { font-size: 34px; }
+  .detail-aside { position: sticky; top: 90px; display: block !important; }
+  .detail-aside .card > * + * { margin-top: 10px; }
+  .aside-price { font-size: 32px; font-weight: 800; color: var(--gold); margin-top: 2px !important; }
+  .aside-facts { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .aside-facts div { display: flex; gap: 8px; align-items: center; }
+
+  /* pie de página */
+  .footer { display: block !important; margin-top: 48px; background: #082018; border-top: 1px solid var(--line); }
+  .footer-in { max-width: 1200px; margin: 0 auto; padding: 36px 32px 20px; display: grid !important; grid-template-columns: 2fr 1fr 1fr; gap: 32px; }
+  .footer h4 { margin: 0 0 10px; font-size: 14px; color: var(--gold); }
+  .footer .brand.static { cursor: default; margin-bottom: 8px; display: flex !important; }
+  .footer-link { display: block; background: none; border: 0; padding: 4px 0; color: var(--text); cursor: pointer; text-align: left; font-size: 14px; }
+  .footer-link:hover { color: var(--gold); }
+  .footer-bottom { max-width: 1200px; margin: 0 auto; padding: 14px 32px 22px; border-top: 1px solid var(--line); }
+}

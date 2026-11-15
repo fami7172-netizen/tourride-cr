@@ -39,11 +39,14 @@ function Shell() {
   else if (tab === 'bookings') content = <BookingsTab nav={nav} />;
   else content = <ProfileTab nav={nav} />;
 
+  const go = (t) => { setStack([]); setTab(t); window.scrollTo(0, 0); };
   return (
     <div className="app">
+      <TopNav tab={screen ? null : tab} go={go} />
       <main className={screen ? 'screen' : 'screen with-nav'} key={(screen?.name || tab) + (screen?.id || '')}>
         {content}
       </main>
+      {screen?.name !== 'admin' && <Footer go={go} />}
       {!screen && <BottomNav tab={tab} setTab={(t) => { setTab(t); window.scrollTo(0, 0); }} />}
       <Toast text={toast} />
     </div>
@@ -70,11 +73,61 @@ function BottomNav({ tab, setTab }) {
   );
 }
 
+// Menú de arriba: solo se ve en computadora (en el celular está el menú de abajo)
+function TopNav({ tab, go }) {
+  const { t, settings } = useStore();
+  const items = [['transfers', t('transfers')], ['explore', t('navTours')], ['bookings', t('bookings')], ['profile', t('profile')]];
+  return (
+    <header className="topnav desk-only">
+      <div className="topnav-in">
+        <button className="brand" onClick={() => go('transfers')}>
+          <img src="icon-192.png" alt="" width="38" height="38" />
+          <span>{settings.businessName}</span>
+        </button>
+        <nav className="topnav-links">
+          {items.map(([id, label]) => (
+            <button key={id} className={tab === id ? 'on' : ''} onClick={() => go(id)}>{label}</button>
+          ))}
+        </nav>
+        <LangToggle inline />
+        <a className="btn-gold topnav-cta" href={waLink(settings.whatsapp, 'Hola TourRide CR 👋')} target="_blank" rel="noreferrer"><Icon.whatsapp /> WhatsApp</a>
+      </div>
+    </header>
+  );
+}
+
+// Pie de página (computadora)
+function Footer({ go }) {
+  const { t, settings } = useStore();
+  return (
+    <footer className="footer desk-only">
+      <div className="footer-in">
+        <div>
+          <div className="brand static"><img src="icon-192.png" alt="" width="34" height="34" /><span>{settings.businessName}</span></div>
+          <p className="muted small">{t('footerAbout')}</p>
+        </div>
+        <div>
+          <h4>{t('footerExplore')}</h4>
+          <button className="footer-link" onClick={() => go('transfers')}>{t('transfers')}</button>
+          <button className="footer-link" onClick={() => go('explore')}>{t('navTours')}</button>
+          <button className="footer-link" onClick={() => go('bookings')}>{t('bookings')}</button>
+        </div>
+        <div>
+          <h4>{t('footerContact')}</h4>
+          <a className="footer-link" href={waLink(settings.whatsapp, 'Hola TourRide CR 👋')} target="_blank" rel="noreferrer">WhatsApp +{settings.whatsapp}</a>
+          <span className="footer-link muted">Costa Rica 🇨🇷</span>
+        </div>
+      </div>
+      <div className="footer-bottom muted small">© {new Date().getFullYear()} {settings.businessName}</div>
+    </footer>
+  );
+}
+
 // Botón visible para cambiar entre español e inglés
-function LangToggle() {
+function LangToggle({ inline }) {
   const { lang, setLang } = useStore();
   return (
-    <div className="lang-toggle" role="group" aria-label="Idioma / Language">
+    <div className={'lang-toggle' + (inline ? ' inline' : '')} role="group" aria-label="Idioma / Language">
       <button className={lang === 'es' ? 'on' : ''} onClick={() => setLang('es')}>ES</button>
       <button className={lang === 'en' ? 'on' : ''} onClick={() => setLang('en')}>EN</button>
     </div>
@@ -238,7 +291,45 @@ function TransfersTab({ nav }) {
         <p className="muted small center">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
       </div>
         </div>
+      <HomeExtras nav={nav} />
     </>
+  );
+}
+
+// Portada en computadora: por qué elegirnos + tours destacados
+function HomeExtras({ nav }) {
+  const { t, lang, tours, partners, settings, fm } = useStore();
+  const featured = tours.filter((x) => x.active && x.featured && partners.some((p) => p.id === x.partnerId && p.active !== false)).slice(0, 3);
+  return (
+    <div className="pad home-extras desk-only">
+      <div className="why">
+        {[['🚐', 'why1'], ['🗣️', 'why2'], ['📲', 'why3']].map(([ic, k]) => (
+          <div key={k} className="why-item">
+            <span className="why-icon">{ic}</span>
+            <div><div className="bold">{t(k)}</div><div className="muted small">{t(k + 'Sub')}</div></div>
+          </div>
+        ))}
+      </div>
+      {featured.length > 0 && (
+        <>
+          <div className="section-head">
+            <h2>{t('popularTours')}</h2>
+            <button className="link-gold" onClick={() => nav.reset('explore')}>{t('seeAll')} →</button>
+          </div>
+          <div className="tour-grid">
+            {featured.map((tour) => (
+              <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
+                <Scene scene={tour.scene} photo={'tour-' + tour.id} height={190} rounded={0} />
+                <div className="tour-card-body">
+                  <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
+                  <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)} · ★ {tour.rating}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -430,7 +521,8 @@ function TourDetail({ id, nav }) {
         <div className="hero-shade" />
         <button className="round floating" onClick={nav.back} aria-label={t('back')}><Icon.back /></button>
       </Scene>
-      <div className="pad stack detail narrow">
+      <div className="pad detail-layout">
+      <div className="stack detail">
         <h1 className="detail-title">{tour.name[lang]}</h1>
         <div className="chips">
           <span className="chip static"><Icon.clock /> {tour.duration} {t('hours')}</span>
@@ -455,9 +547,23 @@ function TourDetail({ id, nav }) {
           </Scene>
           <span className="small gold">{t('openMap')} ↗</span>
         </a>
-        <div style={{ height: 70 }} />
+        <div className="mobile-only" style={{ height: 70 }} />
       </div>
-      <div className="sticky-cta">
+      <aside className="detail-aside desk-only">
+        <div className="card">
+          <div className="muted small">{t('from')}</div>
+          <div className="aside-price">{fm(p.adult)} <small className="muted">/ {t('adult')}</small></div>
+          <div className="muted small">{fm(p.child)} / {t('child')}</div>
+          <div className="aside-facts small muted">
+            <div><Icon.clock /> {tour.duration} {t('hours')}</div>
+            <div><Icon.pin /> {tour.location}</div>
+          </div>
+          <button className="btn-gold" onClick={() => nav.push({ name: 'bookTour', id: tour.id })}>{t('bookTour')}</button>
+          <a className="btn-outline" href={waLink(settings.whatsapp, `Hola, tengo una consulta sobre el tour ${tour.name.es}.`)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('contactUs')}</a>
+        </div>
+      </aside>
+      </div>
+      <div className="sticky-cta mobile-only">
         <button className="btn-gold" onClick={() => nav.push({ name: 'bookTour', id: tour.id })}>
           {t('bookTour')} · {fm(p.adult)} {t('adult')} / {fm(p.child)} {t('child')}
         </button>
