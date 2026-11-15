@@ -197,9 +197,10 @@ function TransfersTab({ nav }) {
 
   return (
     <>
-      <Hero scene="beach" logo title={settings.businessName} sub={t('tagline')} />
+      <HomeHero nav={nav} />
       <div className="pad transfer-layout">
         <div className="stack">
+        <h2 className="form-title" id="reservar">{t('bookRideTitle')}</h2>
         <div className="card list">
           <Row icon={<Icon.plane />} label={t('origin')}>
             <select value={d.from} onChange={set('from')}>{zones.map((z) => <option key={z} value={z}>{zoneLabel(z, lang)}</option>)}<option value={OTHER}>{t('otherPlace')}</option></select>
@@ -291,8 +292,65 @@ function TransfersTab({ nav }) {
         <p className="muted small center">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
       </div>
         </div>
+      <FleetCatalog />
       <HomeExtras nav={nav} />
     </>
+  );
+}
+
+// Portada: qué ofrecemos en 5 segundos + dos botones principales
+function HomeHero({ nav }) {
+  const { t, settings } = useStore();
+  const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return (
+    <div className="hero home-hero"><Scene scene="beach" height={360} rounded={0}>
+      <div className="hero-shade" />
+      <div className="hero-brand mobile-only"><img src="icon-192.png" alt="" width="34" height="34" /><span>{settings.businessName}</span></div>
+      <LangToggle />
+      <div className="hero-text">
+        <div className="kicker">{t('heroKicker')}</div>
+        <h1>{t('heroTitle')}</h1>
+        <p>{t('heroSub')}</p>
+        <div className="hero-actions">
+          <button className="btn-gold" onClick={toForm}><Icon.car width="18" height="18" /> {t('bookRide')}</button>
+          <button className="btn-ghost" onClick={() => nav.reset('explore')}><Icon.compass width="18" height="18" /> {t('exploreTours')}</button>
+        </div>
+      </div>
+    </Scene></div>
+  );
+}
+
+// Catálogo de vehículos: capacidad, maletas, aire acondicionado y precio desde
+function FleetCatalog() {
+  const { t, lang, rates, fm } = useStore();
+  const list = vehicleTypes
+    .map((v) => {
+      const prices = rates.map((r) => Number(r[v.id])).filter((n) => n > 0);
+      return { v, from: prices.length ? Math.min(...prices) : null };
+    })
+    .filter((x) => x.from != null);
+  if (!list.length) return null;
+  return (
+    <div className="pad fleet-catalog">
+      <div className="section-head"><h2>{t('ourFleet')}</h2></div>
+      <p className="muted small fleet-sub">{t('ourFleetSub')}</p>
+      <div className="fleet-grid">
+        {list.map(({ v, from }) => (
+          <div key={v.id} className="card fleet-card">
+            <div className="fleet-img">{photos[v.id] ? <img src={photos[v.id]} alt={v.name[lang]} loading="lazy" /> : <span>{v.icon}</span>}</div>
+            <div className="fleet-body">
+              <div className="bold">{v.name[lang]}</div>
+              <div className="fleet-facts small muted">
+                <span title={t('passengers')}><Icon.users /> {v.capacity}</span>
+                <span title={t('luggage')}><Icon.bag /> {v.luggage}</span>
+                <span>{v.id === 'boat' ? `🛟 ${t('lifeJackets')}` : `❄️ ${t('ac')}`}</span>
+              </div>
+              <div className="gold bold small">{t('from')} {fm(from)}{v.perPerson ? ` / ${t('perPerson')}` : ''}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -301,7 +359,7 @@ function HomeExtras({ nav }) {
   const { t, lang, tours, partners, settings, fm } = useStore();
   const featured = tours.filter((x) => x.active && x.featured && partners.some((p) => p.id === x.partnerId && p.active !== false)).slice(0, 3);
   return (
-    <div className="pad home-extras desk-only">
+    <div className="pad home-extras">
       <div className="why">
         {[['🚐', 'why1'], ['🗣️', 'why2'], ['📲', 'why3']].map(([ic, k]) => (
           <div key={k} className="why-item">
