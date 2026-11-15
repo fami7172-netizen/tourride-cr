@@ -90,22 +90,99 @@ create policy "chofer ve las suyas" on bookings for select using (
 );
 
 -- El cliente (sin cuenta) crea su reserva con esta función; no puede leer las de otros.
-create or replace function public.create_booking(b jsonb) returns text
+-- El PRECIO lo calcula aquí la base de datos con las tarifas guardadas (no se confía en lo que manda el celular),
+-- revisa los cupos del tour y evita reservas repetidas por doble clic.
+drop function if exists public.create_booking(jsonb);
+create or replace function public.create_booking(b jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
-declare new_code text;
+declare
+  v_code text;
+  v_st jsonb := coalesce((select data from app_data where key = 'settings'), '{}'::jsonb);
+  v_tour jsonb; v_rate jsonb; v_partner jsonb;
+  v_type text := b->>'type';
+  v_date date := (b->>'date')::date;
+  v_time text := b->>'time';
+  v_phone text := regexp_replace(coalesce(b->'customer'->>'phone', ''), '\D', '', 'g');
+  v_status text := 'pending';
+  v_adults int := greatest(coalesce((b->>'adults')::int, 0), 0);
+  v_kids int := greatest(coalesce((b->>'kids')::int, 0), 0);
+  v_pax int := greatest(coalesce((b->>'pax')::int, 0), 0);
+  v_people int; v_used int; v_pct numeric;
+  v_tour_amount numeric := 0; v_discount numeric := 0; v_pickup_amount numeric := 0;
+  v_unit numeric := 0; v_total numeric := 0; v_deposit numeric := 0; v_commission numeric := 0;
+  v_dup text; v_details jsonb;
 begin
+  if coalesce(trim(b->'customer'->>'name'), '') = '' or length(v_phone) < 8 then raise exception 'Faltan nombre o teléfono'; end if;
+  if v_date is null or v_date < current_date - 1 or v_date > current_date + 730 then raise exception 'Fecha no válida'; end if;
+  if v_type not in ('tour', 'transfer') then raise exception 'Tipo no válido'; end if;
+
+  -- doble clic: la misma reserva en los últimos 10 minutos devuelve el mismo código
+  select bk.code into v_dup from bookings bk
+  where bk.type = v_type and bk.date = v_date and bk.time = v_time and bk.status <> 'cancelled'
+    and right(regexp_replace(bk.customer_phone, '\D', '', 'g'), 8) = right(v_phone, 8)
+    and coalesce(bk.details->>'tourId', '') = coalesce(b->>'tourId', '')
+    and coalesce(bk.details->>'from', '') = coalesce(b->>'from', '') and coalesce(bk.details->>'to', '') = coalesce(b->>'to', '')
+    and bk.created_at > now() - interval '10 minutes'
+  limit 1;
+  if v_dup is not null then
+    return (select jsonb_build_object('code', bk.code, 'status', bk.status, 'total', bk.total, 'deposit', bk.deposit) from bookings bk where bk.code = v_dup);
+  end if;
+
+  if v_type = 'tour' then
+    select t into v_tour from jsonb_array_elements(coalesce((select data from app_data where key = 'tours'), '[]'::jsonb)) t
+      where t->>'id' = b->>'tourId' and coalesce((t->>'active')::boolean, true);
+    if v_tour is null then raise exception 'Tour no disponible'; end if;
+    if not (v_tour->'schedules') ? v_time then raise exception 'Horario no válido'; end if;
+    v_people := v_adults + v_kids;
+    if v_adults < 1 or v_people > 60 then raise exception 'Cantidad de personas no válida'; end if;
+    select coalesce(sum(coalesce((bk.details->>'adults')::int, 0) + coalesce((bk.details->>'kids')::int, 0)), 0) into v_used
+      from bookings bk
+      where bk.type = 'tour' and bk.details->>'tourId' = v_tour->>'id' and bk.date = v_date and bk.time = v_time and bk.status <> 'cancelled';
+    if v_used + v_people > coalesce((v_tour->>'capacity')::int, 999) then raise exception 'No hay cupos suficientes'; end if;
+    if coalesce((v_st->>'highSeason')::boolean, false) then
+      v_tour_amount := v_adults * coalesce(nullif(v_tour->>'highAdult', '')::numeric, (v_tour->>'priceAdult')::numeric)
+                   + v_kids * coalesce(nullif(v_tour->>'highChild', '')::numeric, (v_tour->>'priceChild')::numeric);
+    else
+      v_tour_amount := v_adults * (v_tour->>'priceAdult')::numeric + v_kids * (v_tour->>'priceChild')::numeric;
+    end if;
+    v_pct := coalesce((v_st->'coupons'->>upper(coalesce(b->>'coupon', '')))::numeric, 0);
+    v_discount := round(v_tour_amount * v_pct / 100);
+    if coalesce((b->>'pickup')::boolean, false) then
+      v_pickup_amount := v_people * coalesce((v_st->>'hotelPickupPerPerson')::numeric, 0);
+    end if;
+    v_total := v_tour_amount - v_discount + v_pickup_amount;
+    select p into v_partner from jsonb_array_elements(coalesce((select data from app_data where key = 'partners'), '[]'::jsonb)) p
+      where p->>'id' = v_tour->>'partnerId';
+    v_commission := round((v_tour_amount - v_discount) * coalesce((v_partner->>'commission')::numeric, 0) / 100);
+  else
+    if v_pax < 1 or v_pax > 60 then raise exception 'Cantidad de pasajeros no válida'; end if;
+    select r into v_rate from jsonb_array_elements(coalesce((select data from app_data where key = 'rates'), '[]'::jsonb)) r
+      where (r->>'from' = b->>'from' and r->>'to' = b->>'to') or (r->>'from' = b->>'to' and r->>'to' = b->>'from')
+      limit 1;
+    v_unit := coalesce(nullif(v_rate->>(b->>'vehicleId'), '')::numeric, 0);
+    if v_unit <= 0 then
+      v_status := 'quote';   -- sin tarifa: el dueño cotiza
+    elsif b->>'vehicleId' in ('shuttle', 'boat') then
+      v_total := v_unit * v_pax;
+    else
+      v_total := v_unit;
+    end if;
+  end if;
+  v_deposit := round(v_total * coalesce((v_st->>'depositPct')::numeric, 0) / 100);
+
   loop
-    new_code := 'TR-' || (10000 + floor(random() * 90000))::int;
-    exit when not exists (select 1 from bookings where code = new_code);
+    v_code := 'TR-' || (10000 + floor(random() * 90000))::int;
+    exit when not exists (select 1 from bookings bk where bk.code = v_code);
   end loop;
+  v_details := b || jsonb_build_object('code', v_code, 'tourAmount', v_tour_amount, 'discount', v_discount, 'pickupAmount', v_pickup_amount,
+                                     'unit', v_unit, 'total', v_total, 'deposit', v_deposit, 'commission', v_commission, 'status', v_status);
+  if v_type = 'tour' then v_details := v_details || jsonb_build_object('partnerId', v_tour->>'partnerId', 'tourName', v_tour->'name', 'location', v_tour->>'location'); end if;
   insert into bookings (code, type, status, date, time, partner_id, vehicle_type, customer_name, customer_phone,
                         customer_email, total, deposit, commission, details)
-  values (new_code, b->>'type', case when b->>'status' = 'quote' then 'quote' else 'pending' end,
-          (b->>'date')::date, b->>'time', b->>'partnerId', b->>'vehicleId',
-          b->'customer'->>'name', b->'customer'->>'phone', b->'customer'->>'email',
-          coalesce((b->>'total')::numeric, 0), coalesce((b->>'deposit')::numeric, 0),
-          coalesce((b->>'commission')::numeric, 0), b);
-  return new_code;
+  values (v_code, v_type, v_status, v_date, v_time, v_details->>'partnerId', b->>'vehicleId',
+          trim(b->'customer'->>'name'), b->'customer'->>'phone', b->'customer'->>'email',
+          v_total, v_deposit, v_commission, v_details);
+  return jsonb_build_object('code', v_code, 'status', v_status, 'total', v_total, 'deposit', v_deposit);
 end $$;
 grant execute on function public.create_booking(jsonb) to anon, authenticated;
 
@@ -139,6 +216,45 @@ language sql stable security definer set search_path = public as $$
 $$;
 grant execute on function public.day_load(date) to anon, authenticated;
 
+-- ========== Opiniones de clientes ==========
+-- Solo quien hizo una reserva (con su código y teléfono) puede opinar; el dueño las aprueba antes de publicarlas.
+create table if not exists public.reviews (
+  id uuid primary key default gen_random_uuid(),
+  booking_code text unique not null,
+  type text,
+  tour_id text,
+  name text,
+  rating int not null check (rating between 1 and 5),
+  comment text,
+  lang text,
+  approved boolean not null default false,
+  created_at timestamptz default now()
+);
+alter table public.reviews enable row level security;
+drop policy if exists "ver opiniones aprobadas" on reviews;
+create policy "ver opiniones aprobadas" on reviews for select using (approved or public.is_admin());
+drop policy if exists "admin modera opiniones" on reviews;
+create policy "admin modera opiniones" on reviews for all using (public.is_admin()) with check (public.is_admin());
+
+create or replace function public.submit_review(p_code text, p_phone text, p_rating int, p_comment text, p_lang text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare r_code text; r_type text; r_tour text; r_name text;
+begin
+  select bk.code, bk.type, bk.details->>'tourId', split_part(trim(bk.customer_name), ' ', 1)
+    into r_code, r_type, r_tour, r_name
+  from bookings bk
+  where bk.code = p_code
+    and right(regexp_replace(bk.customer_phone, '\D', '', 'g'), 8) = right(regexp_replace(p_phone, '\D', '', 'g'), 8)
+    and (bk.status = 'completed' or (bk.status = 'paid' and bk.date <= current_date));
+  if r_code is null then raise exception 'Solo se puede opinar de una reserva ya realizada'; end if;
+  if p_rating < 1 or p_rating > 5 then raise exception 'Calificación no válida'; end if;
+  insert into reviews (booking_code, type, tour_id, name, rating, comment, lang)
+  values (r_code, r_type, r_tour, r_name, p_rating, left(coalesce(p_comment, ''), 600), p_lang)
+  on conflict (booking_code) do update set rating = excluded.rating, comment = excluded.comment, approved = false, created_at = now();
+  return true;
+end $$;
+grant execute on function public.submit_review(text, text, int, text, text) to anon, authenticated;
+
 -- ========== Fotos ==========
 insert into storage.buckets (id, name, public) values ('photos', 'photos', true) on conflict do nothing;
 drop policy if exists "fotos públicas" on storage.objects;
@@ -154,3 +270,5 @@ grant select on public.app_data to anon, authenticated;
 grant insert, update, delete on public.app_data to authenticated;
 grant select, insert, update, delete on public.bookings to authenticated;
 grant select, update on public.profiles to authenticated;
+grant select on public.reviews to anon, authenticated;
+grant update, delete on public.reviews to authenticated;

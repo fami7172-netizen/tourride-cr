@@ -115,6 +115,13 @@ export async function fetchDayLoad(date) {
   }));
 }
 
+// ---------- opiniones ----------
+export const fetchReviews = () => api('reviews?select=*&order=created_at.desc&limit=300');
+export const submitReview = (code, phone, rating, comment, lang) =>
+  rpc('submit_review', { p_code: code, p_phone: phone, p_rating: rating, p_comment: comment, p_lang: lang });
+export const updateReview = (id, patch) => api(`reviews?id=eq.${id}`, { method: 'PATCH', body: patch, prefer: 'return=minimal' });
+export const deleteReview = (id) => api(`reviews?id=eq.${id}`, { method: 'DELETE', prefer: 'return=minimal' });
+
 // ---------- panel ----------
 export async function fetchMyProfile() {
   const u = currentUser();

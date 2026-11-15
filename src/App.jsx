@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { StoreProvider, useStore, useDayBookings, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
+import { StoreProvider, useStore, useDayBookings, ratingOf, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
 import { vehicleTypes } from './data.js';
 import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
@@ -298,6 +298,69 @@ function TransfersTab({ nav }) {
   );
 }
 
+// ---------- opiniones ----------
+function Stars({ tourId }) {
+  const { reviews } = useStore();
+  const r = ratingOf(tourId, reviews);
+  return r ? <> · ★ {r.avg} <span className="muted">({r.count})</span></> : null;
+}
+
+function ReviewItem({ r }) {
+  const { t, lang, tours } = useStore();
+  const tour = tours.find((x) => x.id === r.tour_id);
+  return (
+    <div className="review">
+      <div className="review-top">
+        <span className="gold">{'★'.repeat(r.rating)}<span className="muted">{'★'.repeat(5 - r.rating)}</span></span>
+        <strong>{r.name}</strong>
+        <span className="muted small">{tour ? tour.name[lang] : t('transfer')}</span>
+      </div>
+      {r.comment && <p className="review-text">“{r.comment}”</p>}
+    </div>
+  );
+}
+
+// El cliente califica su reserva ya realizada; el dueño la aprueba en el panel antes de publicarla.
+function ReviewBox({ b }) {
+  const { t, sendReview } = useStore();
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const send = async () => {
+    setBusy(true); setErr('');
+    try { await sendReview(b, rating, comment.trim()); } catch (e) { setErr(t('sendError')); setBusy(false); }
+  };
+  return (
+    <div className="card form">
+      <h3 className="card-title">{t('leaveReview')}</h3>
+      <p className="muted small">{t('reviewHint')}</p>
+      <div className="star-pick" role="radiogroup" aria-label={t('leaveReview')}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button key={n} type="button" className={n <= rating ? 'on' : ''} onClick={() => setRating(n)} aria-label={`${n}`}>★</button>
+        ))}
+      </div>
+      <textarea rows="3" maxLength="600" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('reviewPlaceholder')} />
+      {err && <p className="error small">{err}</p>}
+      <button className="btn-gold" disabled={busy} onClick={send}>{busy ? t('sending') : t('sendReview')}</button>
+    </div>
+  );
+}
+
+function Testimonials() {
+  const { t, reviews } = useStore();
+  const list = reviews.filter((r) => r.rating >= 4 && r.comment).slice(0, 3);
+  if (!list.length) return null;
+  return (
+    <>
+      <div className="section-head"><h2>{t('whatTheySay')}</h2></div>
+      <div className="testimonials">
+        {list.map((r) => <div key={r.id} className="card"><ReviewItem r={r} /></div>)}
+      </div>
+    </>
+  );
+}
+
 // Portada: qué ofrecemos en 5 segundos + dos botones principales
 function HomeHero({ nav }) {
   const { t, settings } = useStore();
@@ -380,13 +443,14 @@ function HomeExtras({ nav }) {
                 <Scene scene={tour.scene} photo={'tour-' + tour.id} height={190} rounded={0} />
                 <div className="tour-card-body">
                   <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
-                  <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)} · ★ {tour.rating}</div>
+                  <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)}<Stars tourId={tour.id} /></div>
                 </div>
               </button>
             ))}
           </div>
         </>
       )}
+      <Testimonials />
     </div>
   );
 }
@@ -487,7 +551,8 @@ async function send(b, submitBooking, setSending, setErr, t, nav) {
     nav.reset();
     nav.push({ name: 'booking', id: saved.id });
   } catch (e) {
-    setErr(t('sendError'));
+    const msg = String(e.message || '');
+    setErr(/cupos/i.test(msg) ? t('noSeats') : /no válid|no disponible/i.test(msg) ? t('checkData') : t('sendError'));
     setSending(false);
   }
 }
@@ -553,7 +618,7 @@ function ExploreTab({ nav }) {
               <Scene scene={tour.scene} photo={'tour-' + tour.id} height={170} rounded={0} />
               <div className="tour-card-body">
                 <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
-                <div className="gold small bold">{t('from')} {fm(p.adult)} · ★ {tour.rating}</div>
+                <div className="gold small bold">{t('from')} {fm(p.adult)}<Stars tourId={tour.id} /></div>
               </div>
             </button>
           );
@@ -566,12 +631,13 @@ function ExploreTab({ nav }) {
 
 // ---------- DETALLE DEL TOUR ----------
 function TourDetail({ id, nav }) {
-  const { t, lang, tours, partners, settings, fm } = useStore();
+  const { t, lang, tours, partners, settings, fm, reviews } = useStore();
   const tour = tours.find((x) => x.id === id);
   if (!tour) return <div className="pad"><TopBar title="" onBack={nav.back} /></div>;
   const partner = partners.find((p) => p.id === tour.partnerId);
   const p = tourPrices(tour, settings);
   const map = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(tour.location + ', Costa Rica');
+  const rating = ratingOf(tour.id, reviews);
 
   return (
     <>
@@ -586,7 +652,7 @@ function TourDetail({ id, nav }) {
           <span className="chip static"><Icon.clock /> {tour.duration} {t('hours')}</span>
           <span className="chip static"><Icon.leaf /> {t(tour.difficulty)}</span>
           <span className="chip static"><Icon.users /> {t('fromAge', { n: tour.minAge })}</span>
-          <span className="chip static">★ {tour.rating} ({tour.reviews})</span>
+          {rating && <span className="chip static">★ {rating.avg} ({t(rating.count === 1 ? 'reviewsOne' : 'reviewsCount', { n: rating.count })})</span>}
         </div>
         {partner && <p className="small">{t('partner')}: <strong>{partner.name}</strong></p>}
         <p className="muted">{tour.desc[lang]}</p>
@@ -599,6 +665,12 @@ function TourDetail({ id, nav }) {
           <h3 className="card-title">{t('bring')}</h3>
           {tour.bring[lang].map((x) => <Info key={x} icon={<Icon.bag />} text={x} />)}
         </div>
+        {rating && (
+          <div className="card list">
+            <h3 className="card-title">{t('reviewsTitle')} · ★ {rating.avg}</h3>
+            {rating.list.slice(0, 6).map((r) => <ReviewItem key={r.id} r={r} />)}
+          </div>
+        )}
         <a className="card map" href={map} target="_blank" rel="noreferrer">
           <Scene scene="coffee" noPhoto height={110} rounded={12}>
             <div className="map-pin"><Icon.pin width="28" height="28" /><span>{tour.location}</span></div>
@@ -809,6 +881,8 @@ function BookingDone({ id, nav }) {
         <div className="info"><span className="row-icon">●</span><span>{t('status')}: <strong className={'st-' + b.status}>{t(b.status)}</strong></span></div>
       </div>
       {b.status === 'quote' && <p className="muted small">{t('quoteNote')}</p>}
+      {b.cloud && !b.reviewed && (b.status === 'completed' || (b.status === 'paid' && b.date <= todayISO())) && <ReviewBox b={b} />}
+      {b.reviewed && <p className="ok small center">{t('reviewThanks')}</p>}
       {b.status === 'pending' && b.deposit > 0 && <p className="muted small">{t('depositNote', { n: settings.depositPct })} {t('depositNow', { n: settings.depositPct })}: <strong className="gold">{fm(b.deposit)}</strong></p>}
       {b.status === 'pending' && b.payment === 'sinpe' && <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>}
       <a className="btn-gold" href={waLink(settings.whatsapp, text)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('shareWhatsapp')}</a>

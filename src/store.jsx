@@ -81,6 +81,7 @@ export function StoreProvider({ children }) {
   const [admin, setAdmin] = useState(null); // { user, profile } cuando alguien entra al panel
   const [adminBookings, setAdminBookings] = useState([]);
   const [dayLoads, setDayLoads] = useState({});
+  const [reviews, setReviews] = useState([]); // opiniones aprobadas (las ve todo el mundo)
   const [cloudError, setCloudError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const stateRef = useRef(state);
@@ -101,6 +102,7 @@ export function StoreProvider({ children }) {
       const cat = await cloud.fetchCatalog();
       setState((s) => applyCatalog(s, cat, false));
     } catch (e) { /* sin señal: se usa la copia local */ }
+    cloud.fetchReviews().then((r) => setReviews((r || []).filter((x) => x.approved))).catch(() => {});
   }, []);
 
   const loadAdmin = useCallback(async () => {
@@ -150,7 +152,11 @@ export function StoreProvider({ children }) {
     const setCat = (key) => (updater) => { dirty.current.add(key); set(key, updater); };
     return {
       ...state,
-      admin, adminBookings, dayLoads, cloudError, syncing,
+      admin, adminBookings, dayLoads, cloudError, syncing, reviews,
+      sendReview: async (b, rating, comment) => {
+        await cloud.submitReview(b.code, b.customer.phone, rating, comment, state.lang);
+        set('bookings', (list) => list.map((x) => (x.id === b.id ? { ...x, reviewed: true } : x)));
+      },
       t: makeT(state.lang),
       setLang: (l) => set('lang', l),
       setProfile: (p) => set('profile', p),
@@ -179,8 +185,10 @@ export function StoreProvider({ children }) {
       // ----- cliente -----
       // Envía la reserva a la nube; la base de datos da el código definitivo.
       submitBooking: async (b) => {
-        const code = await cloud.createBooking(b);
-        const saved = { ...b, code, cloud: true };
+        // La base de datos calcula el precio final y da el código (versiones viejas solo devolvían el código).
+        const res = await cloud.createBooking(b);
+        const r = typeof res === 'string' ? { code: res } : res;
+        const saved = { ...b, code: r.code, cloud: true, ...(r.total != null ? { total: Number(r.total), deposit: Number(r.deposit), status: r.status } : {}) };
         set('bookings', (list) => [saved, ...list]);
         setDayLoads((d) => { const n = { ...d }; delete n[b.date]; return n; });
         return saved;
@@ -221,7 +229,7 @@ export function StoreProvider({ children }) {
           .catch((e) => setCloudError('No se pudo guardar la reserva: ' + e.message));
       },
     };
-  }, [state, admin, adminBookings, dayLoads, cloudError, syncing, loadAdmin, loadPublic]);
+  }, [state, admin, adminBookings, dayLoads, cloudError, syncing, reviews, loadAdmin, loadPublic]);
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
@@ -310,4 +318,11 @@ export function useDayBookings(date) {
   const { dayLoads, bookings, loadDay } = useStore();
   useEffect(() => { if (date && !dayLoads[date]) loadDay(date); }, [date, dayLoads[date]]); // eslint-disable-line react-hooks/exhaustive-deps
   return dayLoads[date] || bookings.filter((b) => b.date === date);
+}
+
+// Calificación real de un tour (solo opiniones aprobadas de clientes que hicieron el tour).
+export function ratingOf(tourId, reviews) {
+  const list = reviews.filter((r) => r.tour_id === tourId);
+  if (!list.length) return null;
+  return { avg: (list.reduce((s, r) => s + r.rating, 0) / list.length).toFixed(1), count: list.length, list };
 }

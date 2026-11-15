@@ -22,6 +22,7 @@ const sections = [
   ['places', 'Lugares'],
   ['rates', 'Tarifas'],
   ['settings', 'Ajustes'],
+  ['reviews', 'Opiniones'],
   ['users', 'Usuarios'],
 ];
 
@@ -81,6 +82,7 @@ export default function Admin({ nav }) {
       {sec === 'places' && <Places nav={nav} />}
       {sec === 'rates' && <Rates nav={nav} />}
       {sec === 'settings' && <Settings nav={nav} />}
+      {sec === 'reviews' && <Reviews nav={nav} />}
       {sec === 'users' && <Users nav={nav} />}
     </div>
   );
@@ -128,6 +130,51 @@ function MyTrips({ role }) {
           <div className="small">👤 {b.customer.name} · <a href={waLink(b.customer.phone, `Hola ${b.customer.name}, le escribimos de TourRide CR por su reserva ${b.code}.`)} target="_blank" rel="noreferrer">{b.customer.phone}</a></div>
         </div>
       ))}
+    </>
+  );
+}
+
+// Opiniones: los clientes opinan desde su reserva; aquí se aprueban antes de que se vean en la app.
+function Reviews({ nav }) {
+  const { tours } = useStore();
+  const [list, setList] = useState(null);
+  const [err, setErr] = useState('');
+  const load = () => cloud.fetchReviews().then(setList).catch((e) => setErr(e.message));
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const act = async (fn, msg) => {
+    try { await fn(); nav.toast(msg); load(); } catch (e) { setErr('No se pudo guardar: ' + e.message); }
+  };
+  const pending = (list || []).filter((r) => !r.approved);
+  const shown = (list || []).filter((r) => r.approved);
+  const item = (r) => (
+    <div key={r.id} className="card">
+      <div className="bi-top">
+        <span className="gold">{'★'.repeat(r.rating)}<span className="muted">{'★'.repeat(5 - r.rating)}</span></span>
+        <span className="muted small">{fmtDate(String(r.created_at).slice(0, 10), 'es')} · {r.booking_code}</span>
+      </div>
+      <div className="bold">{r.name} · <span className="muted small">{tours.find((x) => x.id === r.tour_id)?.name.es || 'Traslado'}</span></div>
+      {r.comment && <p className="small">“{r.comment}”</p>}
+      <div className="grid2">
+        {r.approved
+          ? <button className="btn-outline small-btn" onClick={() => act(() => cloud.updateReview(r.id, { approved: false }), 'Ocultada')}>Ocultar</button>
+          : <button className="btn-gold small-btn" onClick={() => act(() => cloud.updateReview(r.id, { approved: true }), 'Publicada')}>Publicar</button>}
+        <button className="btn-outline small-btn danger-outline" onClick={() => act(() => cloud.deleteReview(r.id), 'Borrada')}>Borrar</button>
+      </div>
+    </div>
+  );
+  return (
+    <>
+      <div className="card note small">
+        Los clientes pueden opinar desde su reserva cuando está "Completada" (o "Pagada" y ya pasó la fecha).
+        Nada se publica hasta que tocas "Publicar". Las estrellas de cada tour salen solo de opiniones publicadas.
+      </div>
+      {err && <p className="error small">{err}</p>}
+      {!list && !err && <p className="muted center">Cargando…</p>}
+      {list && <h3 className="section">Por revisar ({pending.length})</h3>}
+      {list && pending.length === 0 && <p className="muted small">No hay opiniones nuevas.</p>}
+      {pending.map(item)}
+      {shown.length > 0 && <h3 className="section">Publicadas ({shown.length})</h3>}
+      {shown.map(item)}
     </>
   );
 }

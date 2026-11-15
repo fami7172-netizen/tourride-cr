@@ -351,3 +351,15 @@ button:disabled { opacity: 0.6; cursor: default; }
   .section-head { margin: 34px 0 10px; }
   .section-head h2 { font-size: 26px; }
 }
+
+/* opiniones */
+.review + .review { border-top: 1px solid var(--line); }
+.review { padding: 10px 0; }
+.review-top { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.review-text { margin: 6px 0 0; color: var(--text); font-style: italic; }
+.star-pick { display: flex; gap: 6px; }
+.star-pick button { background: none; border: 0; font-size: 32px; line-height: 1; color: rgba(255,255,255,.2); cursor: pointer; padding: 2px; }
+.star-pick button.on { color: var(--gold); }
+.testimonials { display: grid; gap: 12px; }
+.testimonials .review { padding: 0; }
+@media (min-width: 720px) { .testimonials { grid-template-columns: repeat(3, 1fr); } }
