@@ -261,8 +261,8 @@ function transferOptions(rate, pax, bags, free) {
   return vehicleTypes
     .filter((v) => Number(rate[v.id]) > 0 && v.capacity >= pax && v.luggage >= bags)
     .filter((v) => v.perPerson || free(v.id) > 0)
-    // de las busetas/buses privados, el que le queda justo al grupo y dos más grandes
-    .filter((v, i, list) => v.perPerson || v.id === 'suv' || list.filter((x) => !x.perPerson && x.id !== 'suv').slice(0, 3).includes(v))
+    // de las busetas/buses privados, solo el que le queda justo al grupo y uno más grande
+    .filter((v, i, list) => v.perPerson || v.id === 'suv' || list.filter((x) => !x.perPerson && x.id !== 'suv').slice(0, 2).includes(v))
     .map((v) => ({ v, unit: Number(rate[v.id]), total: v.perPerson ? Number(rate[v.id]) * pax : Number(rate[v.id]) }))
     .sort((x, y) => x.total - y.total)
     // el shuttle compartido solo se ofrece si le sale más barato al grupo que un vehículo privado
@@ -391,8 +391,8 @@ function TransfersTab({ nav }) {
             </a>
           )
         )}
-        <div style={{ height: 8 }} />
-        <p className="muted small center">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
+        <div className="ride-when" style={{ height: 8 }} />
+        <p className="muted small center ride-when">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
       </div>
         </div>
       <FleetCatalog />
