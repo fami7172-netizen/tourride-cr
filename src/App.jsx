@@ -6,6 +6,7 @@ import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
 import Assistant from './Assistant.jsx';
 import { photos } from './photos.js';
+import * as cloud from './cloud.js';
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ function routeHash({ tab, stack }) {
   if (s.name === 'bookTransfer') return '#/traslado';
   if (s.name === 'booking') return `#/reserva/${s.id}`;
   if (s.name === 'admin') return '#/admin';
+  if (s.name === 'review') return `#/opinar/${s.code}`;
   return '#/';
 }
 function parseHash(hash) {
@@ -47,6 +49,7 @@ function parseHash(hash) {
   if (a === 'tour' && b) return { tab: 'explore', stack: [{ name: 'tour', id: b }, ...(c === 'reservar' ? [{ name: 'bookTour', id: b }] : [])] };
   if (a === 'reserva' && b) return { tab: 'bookings', stack: [{ name: 'booking', id: b }] };
   if (a === 'admin') return { tab: 'profile', stack: [{ name: 'admin' }] };
+  if (a === 'opinar' && /^TR-\d{5}$/i.test(b || '')) return { tab: 'bookings', stack: [{ name: 'review', code: b.toUpperCase() }] };
   return { tab: 'transfers', stack: [] };
 }
 function initialRoute() {
@@ -108,7 +111,7 @@ function Shell() {
   useEffect(() => {
     const name = settings.businessName || 'TourRide CR';
     const tour = screen && (screen.name === 'tour' || screen.name === 'bookTour') ? tours.find((x) => x.id === screen.id) : null;
-    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
+    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : screen.name === 'review' ? t('leaveReview') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
     document.title = part ? `${part} · ${name}` : `${name} · ${t('heroTitle')}`;
   }, [tab, screen, lang, settings.businessName, tours]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,6 +121,7 @@ function Shell() {
   else if (screen?.name === 'bookTransfer') content = <BookTransfer draft={screen.draft} nav={nav} />;
   else if (screen?.name === 'booking') content = <BookingDone id={screen.id} nav={nav} />;
   else if (screen?.name === 'admin') content = <Admin nav={nav} />;
+  else if (screen?.name === 'review') content = <ReviewPage code={screen.code} nav={nav} />;
   else if (tab === 'transfers') content = <TransfersTab nav={nav} />;
   else if (tab === 'explore') content = <ExploreTab nav={nav} />;
   else if (tab === 'bookings') content = <BookingsTab nav={nav} />;
@@ -131,7 +135,7 @@ function Shell() {
       </main>
       {screen?.name !== 'admin' && <Footer go={go} openAdmin={() => nav.push({ name: 'admin' })} />}
       {!screen && <BottomNav tab={tab} setTab={go} />}
-      {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
+      {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin', 'review'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
     </div>
   );
@@ -442,6 +446,62 @@ function ReviewBox({ b }) {
       <textarea rows="3" maxLength="600" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('reviewPlaceholder')} />
       {err && <p className="error small">{err}</p>}
       <button className="btn-gold" disabled={busy} onClick={send}>{busy ? t('sending') : t('sendReview')}</button>
+    </div>
+  );
+}
+
+// Página a la que llega el cliente desde el enlace de WhatsApp (#/opinar/TR-12345) para dejar su opinión.
+function ReviewPage({ code, nav }) {
+  const { t, lang, bookings, profile, sendReview, settings } = useStore();
+  const local = bookings.find((x) => x.code === code);
+  const [phone, setPhone] = useState(local?.customer.phone || profile?.phone || '');
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [done, setDone] = useState(!!local?.reviewed);
+  const send = async () => {
+    if (phone.replace(/\D/g, '').length < 8) { setErr(t('reviewFail')); return; }
+    setBusy(true); setErr('');
+    try {
+      if (local && local.customer.phone.replace(/\D/g, '').slice(-8) === phone.replace(/\D/g, '').slice(-8)) await sendReview(local, rating, comment.trim());
+      else await cloud.submitReview(code, phone, rating, comment.trim(), lang);
+      setDone(true);
+    } catch (e) {
+      setErr(/realizada|válida/i.test(e.message || '') ? t('reviewFail') : t('sendError'));
+    }
+    setBusy(false);
+  };
+  const wa = waLink(settings.whatsapp, (lang === 'en' ? 'Hi, about my booking ' : 'Hola, sobre mi reserva ') + code);
+  return (
+    <div className="pad stack narrow review-page">
+      <button className="round" onClick={() => nav.reset('transfers')} aria-label={t('close')}>✕</button>
+      <div className="center">
+        <img src="icon-192.png" alt="" width="64" height="64" className="review-logo" />
+        <h1>{t('reviewPageTitle')}</h1>
+        <p className="muted">{t('reviewPageSub').replace('{code}', code)}</p>
+      </div>
+      {done ? (
+        <div className="card center stack">
+          <div className="big-check"><Icon.check width="34" height="34" /></div>
+          <p className="ok">{t('reviewThanks')}</p>
+          <button className="btn-gold" onClick={() => nav.reset('transfers')}>{t('goHome')}</button>
+        </div>
+      ) : (
+        <div className="card form">
+          <Field label={t('phone')}>
+            <input type="tel" inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+506 8888 8888" />
+          </Field>
+          <div className="star-pick" role="radiogroup" aria-label={t('leaveReview')}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button key={n} type="button" className={n <= rating ? 'on' : ''} onClick={() => setRating(n)} aria-label={`${n}`}>★</button>
+            ))}
+          </div>
+          <textarea rows="4" maxLength="600" value={comment} onChange={(e) => setComment(e.target.value)} placeholder={t('reviewPlaceholder')} />
+          {err && <p className="error small">{err} {err === t('reviewFail') && <a href={wa} target="_blank" rel="noreferrer">WhatsApp ↗</a>}</p>}
+          <button className="btn-gold" disabled={busy} onClick={send}>{busy ? t('sending') : t('sendReview')}</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -992,10 +1052,11 @@ function BookingDone({ id, nav }) {
         <div className="info"><span className="row-icon">●</span><span>{t('status')}: <strong className={'st-' + b.status}>{t(b.status)}</strong></span></div>
       </div>
       {b.status === 'quote' && <p className="muted small">{t('quoteNote')}</p>}
+      {b.status !== 'cancelled' && b.status !== 'completed' && <ToursNear b={b} nav={nav} />}
       {b.cloud && !b.reviewed && (b.status === 'completed' || (b.status === 'paid' && b.date <= todayISO())) && <ReviewBox b={b} />}
       {b.reviewed && <p className="ok small center">{t('reviewThanks')}</p>}
       {b.status === 'pending' && b.deposit > 0 && <p className="muted small">{t('depositNote', { n: settings.depositPct })} {t('depositNow', { n: settings.depositPct })}: <strong className="gold">{fm(b.deposit)}</strong></p>}
-      {b.status === 'pending' && b.payment === 'sinpe' && <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>}
+      {b.status === 'pending' && b.payment === 'sinpe' && (b.cloud ? <ReceiptBox b={b} /> : <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>)}
       <a className="btn-gold" href={waLink(settings.whatsapp, text)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('shareWhatsapp')}</a>
       <button className="btn-outline" onClick={() => nav.reset('bookings')}>{t('seeBookings')}</button>
       {(b.status === 'pending' || b.status === 'quote') && <button className="link danger" onClick={() => setAsk(true)}>{t('cancel')}</button>}
@@ -1009,6 +1070,71 @@ function BookingDone({ id, nav }) {
           {cancelErr && <p className="error small">{cancelErr}</p>}
         </Modal>
       )}
+    </div>
+  );
+}
+
+// El cliente sube la foto del comprobante de SINPE; el dueño la aprueba en el panel.
+function ReceiptBox({ b }) {
+  const { t, settings, sendReceipt } = useStore();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  if (b.receipt) return <div className="card note ok-note">🧾 {t('receiptDone')}</div>;
+  const pick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setBusy(true); setErr('');
+    try { await sendReceipt(b, file); } catch (x) { setErr(t('receiptError')); }
+    setBusy(false);
+  };
+  return (
+    <div className="card receipt-box">
+      <div className="bold">🧾 {t('receiptTitle')}</div>
+      <p className="muted small">{t('sinpeInfo2', { n: settings.whatsapp })}</p>
+      <label className={'btn-gold small-btn' + (busy ? ' disabled' : '')}>
+        {busy ? t('sending') : t('receiptBtn')}
+        <input type="file" accept="image/*,application/pdf" hidden disabled={busy} onChange={pick} />
+      </label>
+      {err && <p className="error small">{err}</p>}
+    </div>
+  );
+}
+
+// Tours en el destino del traslado (o en el origen), para ofrecerlos después de reservar.
+const normPlace = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+export function toursNear(places, tours, partners) {
+  const ps = places.map(normPlace).filter(Boolean);
+  return tours.filter((tour) => {
+    if (!tour.active || !partners.some((p) => p.id === tour.partnerId && p.active !== false)) return false;
+    const loc = normPlace(tour.location);
+    return loc && ps.some((p) => p.includes(loc) || loc.includes(p));
+  });
+}
+
+function ToursNear({ b, nav }) {
+  const { t, lang, tours, partners, settings, fm } = useStore();
+  if (b.type !== 'transfer') return null;
+  const near = toursNear([b.to], tours, partners).slice(0, 3);
+  const list = near.length ? near : toursNear([b.from], tours, partners).slice(0, 3);
+  if (!list.length) return null;
+  const place = near.length ? b.to : b.from;
+  return (
+    <div className="upsell">
+      <h3 className="section">{t('upsellTitle', { p: zoneLabel(place, lang) })}</h3>
+      <p className="muted small">{t('upsellSub')}</p>
+      <div className="upsell-list">
+        {list.map((tour) => (
+          <button key={tour.id} className="card upsell-item" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
+            <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={64} rounded={10} />
+            <span className="upsell-text">
+              <strong>{tour.name[lang]}</strong>
+              <span className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)}</span>
+            </span>
+            <span className="gold">›</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

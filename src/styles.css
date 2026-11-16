@@ -409,3 +409,19 @@ button:disabled { opacity: 0.6; cursor: default; }
 .footer-bottom span { cursor: default; user-select: none; }
 .footer-panel { background: none; border: 0; color: var(--muted); font-size: 12px; cursor: pointer; text-decoration: underline; }
 .profile-brand img { -webkit-tap-highlight-color: transparent; user-select: none; }
+.upsell-list { display: grid; gap: 8px; }
+.upsell-item { display: flex; align-items: center; gap: 12px; padding: 8px 12px 8px 8px; text-align: left; cursor: pointer; color: var(--text); width: 100%; }
+.upsell-item .scene { width: 88px; flex: 0 0 88px; }
+.upsell-text { flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.upsell-item > .gold { font-size: 22px; }
+.receipt-box { display: grid; gap: 8px; }
+.receipt-box label.btn-gold { display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.receipt-box label.disabled { opacity: .6; pointer-events: none; }
+.ok-note { border-color: rgba(120, 200, 140, .45); }
+.receipt-admin { display: grid; gap: 6px; padding: 8px 10px; border-radius: 10px; background: rgba(120, 200, 140, .10); border: 1px solid rgba(120, 200, 140, .35); }
+.badge-receipt { font-size: 13px; font-weight: 600; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.auto-assign { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 12px; }
+.card.notice { border-color: rgba(212, 175, 55, .5); margin: 0 0 12px; }
+.review-page .star-pick { justify-content: center; }
+.review-logo { border-radius: 14px; }

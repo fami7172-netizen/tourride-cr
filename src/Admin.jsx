@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore as useBaseStore, isAdminRole, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf } from './store.jsx';
+import { useStore as useBaseStore, isAdminRole, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf, todayISO } from './store.jsx';
 import * as cloud from './cloud.js';
 import { vehicleTypes } from './data.js';
 import { Icon, Field, Modal } from './ui.jsx';
@@ -247,8 +247,10 @@ function Summary() {
     n: active.filter((b) => b.partnerId === p.id).length,
     c: active.filter((b) => b.partnerId === p.id).reduce((s, b) => s + (b.commission || 0), 0),
   }));
+  const receipts = bookings.filter((b) => b.receipt && (b.status === 'pending' || b.status === 'quote')).length;
   return (
     <>
+      {receipts > 0 && <p className="card notice">🧾 {receipts === 1 ? 'Hay 1 comprobante de SINPE por revisar' : `Hay ${receipts} comprobantes de SINPE por revisar`} en Reservas.</p>}
       <div className="grid2">
         <Stat label="Reservas activas" value={active.length} />
         <Stat label="Ventas totales" value={usd(sales)} sub={crc(sales, settings.exchangeRate)} />
@@ -279,6 +281,100 @@ function Stat({ label, value, sub }) {
 }
 
 const statuses = [['quote', 'Por cotizar'], ['pending', 'Pendiente de pago'], ['paid', 'Pagada'], ['completed', 'Completada'], ['cancelled', 'Cancelada']];
+const payNames = { sinpe: 'SINPE', cash: 'Efectivo', card: 'Tarjeta' };
+
+// ¿Esta reserva usa un vehículo propio con chofer? (los traslados compartidos y los tours sin recogida no)
+const needsUnit = (b) => (b.type === 'transfer' ? !vehicleTypes.find((v) => v.id === b.vehicleId)?.perPerson : !!b.pickup);
+const capOf = (u) => vehicleTypes.find((v) => v.id === u.typeId)?.capacity || 0;
+
+// Asigna vehículo y chofer libres a las reservas próximas que no los tienen.
+// Prefiere el mismo tipo de vehículo que pidió el cliente y reparte los viajes entre los choferes.
+export function planAssignments(bookings, fleet, drivers, tours, settings) {
+  const today = todayISO();
+  const work = bookings.map((b) => ({ ...b }));
+  const todo = work
+    .filter((b) => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'quote' && b.date >= today && needsUnit(b) && (!b.unitId || !b.driverId))
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+  const changes = [];
+  for (const b of todo) {
+    const clashes = work.filter((x) => overlaps(b, x, tours, settings));
+    const patch = {};
+    if (!b.unitId) {
+      const people = peopleOf(b);
+      const free = fleet
+        .filter((u) => u.status === 'active' && capOf(u) >= people && !clashes.some((x) => x.unitId === u.id))
+        .sort((x, y) => (x.typeId === b.vehicleId ? 0 : 1) - (y.typeId === b.vehicleId ? 0 : 1) || capOf(x) - capOf(y));
+      if (free[0]) patch.unitId = free[0].id;
+    }
+    if (!b.driverId) {
+      const load = (d) => work.filter((x) => x.date === b.date && x.driverId === d.id && x.status !== 'cancelled').length;
+      const free = drivers
+        .filter((d) => d.active !== false && !clashes.some((x) => x.driverId === d.id))
+        .sort((x, y) => load(x) - load(y));
+      if (free[0]) patch.driverId = free[0].id;
+    }
+    if (Object.keys(patch).length) { Object.assign(b, patch); changes.push({ id: b.id, code: b.code, patch }); }
+  }
+  const missing = todo.filter((b) => !b.unitId || !b.driverId).map((b) => b.code);
+  return { changes, missing, total: todo.length };
+}
+
+function AutoAssign() {
+  const { bookings, updateBooking, fleet, drivers, tours, settings } = useStore();
+  const [msg, setMsg] = useState('');
+  const pending = bookings.filter((b) => b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'quote' && b.date >= todayISO() && needsUnit(b) && (!b.unitId || !b.driverId)).length;
+  if (!pending && !msg) return null;
+  const run = () => {
+    const { changes, missing } = planAssignments(bookings, fleet, drivers, tours, settings);
+    changes.forEach((c) => updateBooking(c.id, c.patch));
+    setMsg((changes.length ? `Listo: se asignaron ${changes.length} ${changes.length === 1 ? 'reserva' : 'reservas'}.` : 'No se pudo asignar ninguna.')
+      + (missing.length ? ` Sin vehículo o chofer libre: ${missing.join(', ')}.` : ''));
+  };
+  return (
+    <div className="card auto-assign">
+      <div>
+        <strong>{pending ? `${pending} ${pending === 1 ? 'reserva próxima' : 'reservas próximas'} sin vehículo o chofer` : 'Asignación automática'}</strong>
+        <div className="muted small">La app elige vehículos y choferes libres a esa hora. Puedes cambiarlos después.</div>
+        {msg && <p className="ok small">{msg}</p>}
+      </div>
+      {pending > 0 && <button className="btn-gold small-btn" onClick={run}>Asignar automáticamente</button>}
+    </div>
+  );
+}
+
+function ReceiptActions({ b, onApprove }) {
+  const [err, setErr] = useState('');
+  const open = async () => {
+    setErr('');
+    const w = window.open('', '_blank');
+    try {
+      const url = await cloud.receiptUrl(b.receipt);
+      if (w) w.location.href = url; else window.location.href = url;
+    } catch (e) {
+      if (w) w.close();
+      setErr('No se pudo abrir el comprobante.');
+    }
+  };
+  return (
+    <div className="receipt-admin">
+      <span className="badge-receipt">🧾 Comprobante recibido{b.receiptAt ? ' · ' + new Date(b.receiptAt).toLocaleString('es-CR', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : ''}</span>
+      <div className="row-btns">
+        <button className="btn-outline small-btn" onClick={open}>Ver comprobante</button>
+        {(b.status === 'pending' || b.status === 'quote') && <button className="btn-gold small-btn" onClick={onApprove}>Aprobar pago</button>}
+      </div>
+      {err && <p className="error small">{err}</p>}
+    </div>
+  );
+}
+
+// Enlace para que el cliente deje su opinión desde WhatsApp (abre la app en la página de opinar).
+function reviewLink(b, businessName) {
+  const url = `${window.location.origin}${window.location.pathname}#/opinar/${b.code}`;
+  const first = String(b.customer.name || '').trim().split(' ')[0];
+  const name = businessName || 'TourRide CR';
+  return waLink(b.customer.phone,
+    `Hola ${first}, gracias por viajar con ${name}. ¿Nos regalas tu opinión? Toma un minuto: ${url}\n\nHi ${first}, thanks for traveling with ${name}! Could you leave us a quick review? ${url}`);
+}
 
 function Bookings() {
   const { bookings, updateBooking, partners, fleet, drivers, tours, settings } = useStore();
@@ -294,6 +390,7 @@ function Bookings() {
         <Icon.search />
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por código (TR-...), nombre o teléfono" />
       </div>
+      <AutoAssign />
       {list.length === 0 && <p className="muted center">No hay reservas todavía.</p>}
       {list.map((b) => {
         const partner = partners.find((p) => p.id === b.partnerId);
@@ -311,7 +408,8 @@ function Bookings() {
                 ? `${b.adults} adultos, ${b.kids} niños${b.hotel ? ' · Hotel: ' + b.hotel : ''}${partner ? ' · ' + partner.name : ''}`
                 : `${b.pax} pax, ${b.bags} maletas · ${vehicle?.name.es || ''}${b.flight ? ' · Vuelo ' + b.flight : ''}`}
             </div>
-            <div className="small">👤 {b.customer.name} · {b.customer.phone} · {b.payment === 'sinpe' ? 'SINPE' : 'Efectivo'}</div>
+            <div className="small">👤 {b.customer.name} · {b.customer.phone} · {payNames[b.payment] || 'Efectivo'}</div>
+            {b.receipt && <ReceiptActions b={b} onApprove={() => updateBooking(b.id, { status: 'paid' })} />}
             <div className="bi-top">
               <strong>{b.status === 'quote' ? 'Por cotizar' : usd(b.total)}{b.commission ? <small className="muted"> · comisión {usd(b.commission)}</small> : null}</strong>
               <select value={b.status} onChange={(e) => updateBooking(b.id, { status: e.target.value })}>
@@ -319,10 +417,13 @@ function Bookings() {
               </select>
             </div>
             {b.status === 'quote' && <QuoteBox b={b} />}
-            {(b.type === 'transfer' ? !vehicleTypes.find((v) => v.id === b.vehicleId)?.perPerson : b.pickup) && b.status !== 'cancelled' && (
+            {needsUnit(b) && b.status !== 'cancelled' && (
               <Assign b={b} bookings={bookings} fleet={fleet} drivers={drivers} tours={tours} settings={settings} onChange={(patch) => updateBooking(b.id, patch)} />
             )}
             <a className="small gold" href={waLink(b.customer.phone, `Hola ${b.customer.name}, te escribimos de TourRide CR sobre tu reserva ${b.code}.`)} target="_blank" rel="noreferrer">Escribir al cliente por WhatsApp ↗</a>
+            {(b.status === 'completed' || (b.status === 'paid' && b.date < todayISO())) && (
+              <a className="small gold" href={reviewLink(b, settings.businessName)} target="_blank" rel="noreferrer">⭐ Pedir opinión al cliente por WhatsApp ↗</a>
+            )}
           </div>
         );
       })}

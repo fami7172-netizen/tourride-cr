@@ -30,6 +30,9 @@ export const strings = {
     aiFab: '¿Te ayudo?', aiTitle: 'Asistente TourRide', aiSub: 'Te ayudo a elegir y reservar', aiNew: 'Nueva conversación', aiHello: '¡Hola! 👋 Soy el asistente de TourRide CR. Cuéntame a dónde vas, cuándo y cuántas personas son, y te recomiendo un traslado o un tour con su precio.', aiQ1: '¿Cuánto cuesta del aeropuerto a La Fortuna?', aiQ2: '¿Qué tour me recomiendas con niños?', aiQ3: 'Quiero reservar un tour', aiReview: 'Revisar y confirmar', aiPlaceholder: 'Escribe tu pregunta…', aiSend: 'Enviar', aiNote: 'Asistente automático: revisa los datos antes de confirmar', aiLimit: 'Ahora mismo hay muchas consultas. Escríbenos por WhatsApp y te atendemos.', aiDown: 'No pude responder en este momento. Escríbenos por WhatsApp y te ayudamos.',
     ictLicense: 'Licencia ICT', heroAlt: 'Playa con palmeras y selva en Costa Rica',
     perk1: 'Precio al instante en dólares y colones', perk2: 'Pago por SINPE Móvil, tarjeta o efectivo', perk3: 'Confirmación con código y por WhatsApp',
+    upsellTitle: '¿Qué hacer en {p}?', upsellSub: 'Tours que puedes reservar para aprovechar tu viaje.',
+    receiptTitle: 'Pago por SINPE Móvil', sinpeInfo2: 'Paga por SINPE Móvil al {n} y sube aquí la foto del comprobante. Te confirmamos el pago.', receiptBtn: 'Subir comprobante', receiptDone: 'Recibimos tu comprobante. Te avisamos cuando confirmemos el pago.', receiptError: 'No se pudo subir el comprobante. Intenta de nuevo o envíalo por WhatsApp.',
+    reviewPageTitle: '¿Cómo te fue con nosotros?', reviewPageSub: 'Reserva {code}. Escribe el teléfono que usaste al reservar.', reviewFail: 'No encontramos un viaje ya realizado con ese código y teléfono. Revisa el número o escríbenos por WhatsApp.', goHome: 'Ir al inicio',
   },
   en: {
     transfers: 'Transfers', explore: 'Explore', bookings: 'My bookings', profile: 'Profile',
@@ -62,6 +65,9 @@ export const strings = {
     aiFab: 'Need help?', aiTitle: 'TourRide assistant', aiSub: 'I help you choose and book', aiNew: 'New chat', aiHello: "Hi! 👋 I'm the TourRide CR assistant. Tell me where you're going, when and how many people, and I'll suggest a transfer or tour with its price.", aiQ1: 'How much from the airport to La Fortuna?', aiQ2: 'Which tour do you recommend with kids?', aiQ3: 'I want to book a tour', aiReview: 'Review and confirm', aiPlaceholder: 'Type your question…', aiSend: 'Send', aiNote: 'Automated assistant: check the details before confirming', aiLimit: 'We have a lot of questions right now. Message us on WhatsApp and we will help you.', aiDown: "I couldn't answer right now. Message us on WhatsApp and we'll help you.",
     ictLicense: 'ICT license', heroAlt: 'Beach with palm trees and rainforest in Costa Rica',
     perk1: 'Instant price in dollars and colones', perk2: 'Pay with SINPE Móvil, card or cash', perk3: 'Confirmation code and WhatsApp updates',
+    upsellTitle: 'Things to do in {p}', upsellSub: 'Tours you can book to make the most of your trip.',
+    receiptTitle: 'SINPE Móvil payment', sinpeInfo2: 'Pay via SINPE Móvil to {n} and upload a photo of the receipt here. We will confirm your payment.', receiptBtn: 'Upload receipt', receiptDone: 'We got your receipt. We will let you know once the payment is confirmed.', receiptError: 'The receipt could not be uploaded. Try again or send it on WhatsApp.',
+    reviewPageTitle: 'How was your trip with us?', reviewPageSub: 'Booking {code}. Enter the phone number you used to book.', reviewFail: "We couldn't find a completed trip with that code and phone. Check the number or message us on WhatsApp.", goHome: 'Go to home page',
   },
 };
 

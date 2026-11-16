@@ -202,8 +202,12 @@ export function StoreProvider({ children }) {
         if (!Object.keys(byCode).length) return;
         set('bookings', (list) => list.map((b) => {
           const r = byCode[b.code];
-          return r ? { ...b, status: r.status, total: Number(r.total), deposit: Number(r.deposit) } : b;
+          return r ? { ...b, status: r.status, total: Number(r.total), deposit: Number(r.deposit), receipt: r.details?.receipt || b.receipt } : b;
         }));
+      },
+      sendReceipt: async (b, file) => {
+        const path = await cloud.uploadReceipt(b.code, b.customer.phone, file);
+        set('bookings', (list) => list.map((x) => (x.id === b.id ? { ...x, receipt: path } : x)));
       },
       cancelMine: async (b) => {
         if (b.cloud) await cloud.cancelMyBooking(b.code, b.customer.phone);

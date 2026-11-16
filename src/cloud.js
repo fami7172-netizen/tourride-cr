@@ -178,3 +178,46 @@ export async function askAssistant(messages, lang) {
   if (!res.ok) return { error: data.error || `http${res.status}` };
   return data;
 }
+
+// ---------- comprobantes de SINPE ----------
+// Achica las fotos del celular (pueden pesar varios MB) antes de subirlas.
+async function shrinkImage(file, max = 1600) {
+  if (!/^image\//.test(file.type) || file.type === 'image/gif') return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.82));
+    return blob || file;
+  } catch (e) { return file; }
+}
+
+export async function uploadReceipt(code, phone, file) {
+  const body = await shrinkImage(file);
+  const ext = body.type === 'application/pdf' ? 'pdf' : body.type === 'image/png' ? 'png' : body.type === 'image/webp' ? 'webp' : 'jpg';
+  const path = `${code}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/receipts/${path}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, 'Content-Type': body.type || 'application/octet-stream', 'x-upsert': 'false' },
+    body,
+  });
+  if (!res.ok) throw new Error(`upload ${res.status}`);
+  const ok = await rpc('attach_receipt', { p_code: code, p_phone: phone, p_path: path });
+  if (!ok) throw new Error('not attached');
+  return path;
+}
+
+// Enlace temporal (10 minutos) para que la administración vea un comprobante.
+export async function receiptUrl(path) {
+  const tk = await token();
+  const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/receipts/${path}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${tk}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expiresIn: 600 }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.signedURL) throw new Error(data.message || `sign ${res.status}`);
+  return `${SUPABASE_URL}/storage/v1${data.signedURL}`;
+}
