@@ -19,13 +19,14 @@ export default function App() {
 // Cada sección tiene su propio enlace (#/tours, #/tour/t3...) y el botón "atrás" del celular funciona.
 const TAB_PATH = { transfers: '#/', explore: '#/tours', bookings: '#/mis-reservas', profile: '#/perfil' };
 
-// Entrada secreta al panel: tocar 5 veces seguidas el logo de Perfil o el © del pie de página.
+// Entrada secreta al panel: tocar 5 veces seguidas el logo (arriba, en Perfil) o el © del pie de página.
 function useSecretTaps(onOpen) {
   const taps = useRef([]);
   return () => {
     const now = Date.now();
     taps.current = [...taps.current.filter((x) => now - x < 2500), now];
-    if (taps.current.length >= 5) { taps.current = []; onOpen(); }
+    if (taps.current.length >= 5) { taps.current = []; onOpen(); return true; }
+    return false;
   };
 }
 function routeHash({ tab, stack }) {
@@ -124,7 +125,7 @@ function Shell() {
 
   return (
     <div className="app">
-      <TopNav tab={screen ? null : tab} go={go} />
+      <TopNav tab={screen ? null : tab} go={go} openAdmin={() => nav.push({ name: 'admin' })} />
       <main className={screen ? 'screen' : 'screen with-nav'} key={(screen?.name || tab) + (screen?.id || '')}>
         {content}
       </main>
@@ -157,13 +158,14 @@ function BottomNav({ tab, setTab }) {
 }
 
 // Menú de arriba: solo se ve en computadora (en el celular está el menú de abajo)
-function TopNav({ tab, go }) {
+function TopNav({ tab, go, openAdmin }) {
   const { t, settings } = useStore();
+  const secret = useSecretTaps(openAdmin);
   const items = [['transfers', t('transfers')], ['explore', t('navTours')], ['bookings', t('bookings')], ['profile', t('profile')]];
   return (
     <header className="topnav desk-only">
       <div className="topnav-in">
-        <button className="brand" onClick={() => go('transfers')}>
+        <button className="brand" onClick={() => { if (!secret()) go('transfers'); }}>
           <img src="icon-192.png" alt={settings.businessName} width="38" height="38" />
           <span>{settings.businessName}</span>
         </button>
@@ -464,6 +466,7 @@ const heroSlides = ['img/beach.jpg', 'img/volcano.jpg', 'img/waterfall.jpg', 'im
 // Portada: qué ofrecemos en 5 segundos + dos botones principales
 function HomeHero({ nav }) {
   const { t, settings } = useStore();
+  const secret = useSecretTaps(() => nav.push({ name: 'admin' }));
   const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [slide, setSlide] = useState(0);
   // Cambia aunque el aparato tenga "reducir animaciones" (en ese caso sin el acercamiento, ver styles.css)
@@ -480,7 +483,7 @@ function HomeHero({ nav }) {
       <div className="hero-dots">
         {heroSlides.map((src, i) => <button key={src} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} aria-label={`${i + 1}`} />)}
       </div>
-      <div className="hero-brand mobile-only"><img src="icon-192.png" alt="" width="34" height="34" /><span>{settings.businessName}</span></div>
+      <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="34" height="34" /><span>{settings.businessName}</span></div>
       <LangToggle />
       <div className="hero-text">
         <div className="kicker">{t('heroKicker')}</div>
