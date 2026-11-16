@@ -361,13 +361,28 @@ function Testimonials() {
   );
 }
 
+// Fotos de la portada: van cambiando solas cada 6 segundos (se pueden reemplazar en public/img)
+const heroSlides = ['img/beach.jpg', 'img/volcano.jpg', 'img/waterfall.jpg', 'img/bridges.jpg'];
+
 // Portada: qué ofrecemos en 5 segundos + dos botones principales
 function HomeHero({ nav }) {
   const { t, settings } = useStore();
   const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    const id = setInterval(() => setSlide((n) => (n + 1) % heroSlides.length), 6000);
+    return () => clearInterval(id);
+  }, []);
   return (
-    <div className="hero home-hero"><Scene scene="beach" height={360} rounded={0}>
+    <div className="hero home-hero"><div className="scene" style={{ height: 360, borderRadius: 0 }}>
+      {heroSlides.map((src, i) => (
+        <img key={src} src={src} alt="" className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
+      ))}
       <div className="hero-shade" />
+      <div className="hero-dots">
+        {heroSlides.map((src, i) => <button key={src} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} aria-label={`${i + 1}`} />)}
+      </div>
       <div className="hero-brand mobile-only"><img src="icon-192.png" alt="" width="34" height="34" /><span>{settings.businessName}</span></div>
       <LangToggle />
       <div className="hero-text">
@@ -379,7 +394,7 @@ function HomeHero({ nav }) {
           <button className="btn-ghost" onClick={() => nav.reset('explore')}><Icon.compass width="18" height="18" /> {t('exploreTours')}</button>
         </div>
       </div>
-    </Scene></div>
+    </div></div>
   );
 }
 
