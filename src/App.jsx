@@ -369,8 +369,8 @@ function HomeHero({ nav }) {
   const { t, settings } = useStore();
   const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [slide, setSlide] = useState(0);
+  // Cambia aunque el aparato tenga "reducir animaciones" (en ese caso sin el acercamiento, ver styles.css)
   useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
     const id = setInterval(() => setSlide((n) => (n + 1) % heroSlides.length), 6000);
     return () => clearInterval(id);
   }, []);

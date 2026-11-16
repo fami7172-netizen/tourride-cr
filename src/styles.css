@@ -372,4 +372,4 @@ button:disabled { opacity: 0.6; cursor: default; }
 .hero-dots button.on { width: 22px; background: var(--gold); }
 @media (max-width: 719px) { .hero-dots { top: calc(56px + env(safe-area-inset-top)); bottom: auto; } }
 @media (min-width: 960px) { .hero-dots { right: max(32px, calc((100% - 1200px) / 2 + 32px)); bottom: 130px; } }
-@media (prefers-reduced-motion: reduce) { .hero-slide { transition: none; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-slide { transition: opacity 1s ease; transform: none; } }
