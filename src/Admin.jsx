@@ -409,6 +409,7 @@ function Bookings() {
                 : `${b.pax} pax, ${b.bags} maletas · ${vehicle?.name.es || ''}${b.flight ? ' · Vuelo ' + b.flight : ''}`}
             </div>
             <div className="small">👤 {b.customer.name} · {b.customer.phone} · {payNames[b.payment] || 'Efectivo'}</div>
+            {b.notes && <div className="small admin-notes">✎ {b.notes}</div>}
             {b.receipt && <ReceiptActions b={b} onApprove={() => updateBooking(b.id, { status: 'paid' })} />}
             <div className="bi-top">
               <strong>{b.status === 'quote' ? 'Por cotizar' : usd(b.total)}{b.commission ? <small className="muted"> · comisión {usd(b.commission)}</small> : null}</strong>
@@ -725,7 +726,7 @@ function Assign({ b, bookings, fleet, drivers, tours, settings, onChange }) {
         </select>
       </Field>
       {driver && unit && (
-        <a className="small gold" href={waLink(driver.phone, `Hola ${driver.name}, viaje ${b.code}: ${fmtDate(b.date, 'es')} ${fmtTime(b.time, 'es')}. ${b.type === 'tour' ? 'Recoger en ' + (b.hotel || '') + ' para ' + b.tourName.es : b.from + ' → ' + b.to}${b.flight ? ', vuelo ' + b.flight : ''}. Cliente: ${b.customer.name} (${b.customer.phone}), ${people} personas. Unidad ${unit.plate}.`)} target="_blank" rel="noreferrer">
+        <a className="small gold" href={waLink(driver.phone, `Hola ${driver.name}, viaje ${b.code}: ${fmtDate(b.date, 'es')} ${fmtTime(b.time, 'es')}. ${b.type === 'tour' ? 'Recoger en ' + (b.hotel || '') + ' para ' + b.tourName.es : b.from + ' → ' + b.to}${b.flight ? ', vuelo ' + b.flight : ''}${b.notes ? '. Nota: ' + b.notes : ''}. Cliente: ${b.customer.name} (${b.customer.phone}), ${people} personas. Unidad ${unit.plate}.`)} target="_blank" rel="noreferrer">
           Enviar el viaje al chofer por WhatsApp ↗
         </a>
       )}

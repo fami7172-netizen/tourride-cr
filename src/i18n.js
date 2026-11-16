@@ -2,7 +2,7 @@ export const strings = {
   es: {
     transfers: 'Traslados', explore: 'Explorar', bookings: 'Mis reservas', profile: 'Perfil',
     tagline: 'Tu traslado, sin sorpresas', exploreSub: 'Tours y experiencias en Costa Rica',
-    origin: 'Origen', destination: 'Destino', date: 'Fecha', time: 'Hora', flight: 'Vuelo (opcional)',
+    origin: 'Origen', destination: 'Destino', date: 'Fecha', time: 'Hora', flight: 'Vuelo (opcional)', notes: 'Comentario (opcional)', notesHint: 'Ej.: silla de ruedas, asiento de bebé', notesShort: 'Comentario',
     passengers: 'Pasajeros', luggage: 'Maletas', bookTransfer: 'Reservar traslado', fitsGroup: 'Cabe tu grupo',
     noRoute: 'Aún no tenemos tarifa para esta ruta. Escríbenos por WhatsApp y te cotizamos.',
     quoteWhatsapp: 'Cotizar por WhatsApp', tooMany: 'Grupo muy grande: escríbenos para una cotización especial.',
@@ -37,7 +37,7 @@ export const strings = {
   en: {
     transfers: 'Transfers', explore: 'Explore', bookings: 'My bookings', profile: 'Profile',
     tagline: 'Your ride, no surprises', exploreSub: 'Tours and experiences in Costa Rica',
-    origin: 'From', destination: 'To', date: 'Date', time: 'Time', flight: 'Flight (optional)',
+    origin: 'From', destination: 'To', date: 'Date', time: 'Time', flight: 'Flight (optional)', notes: 'Comments (optional)', notesHint: 'E.g. wheelchair, baby seat', notesShort: 'Comments',
     passengers: 'Passengers', luggage: 'Bags', bookTransfer: 'Book transfer', fitsGroup: 'Fits your group',
     noRoute: "We don't have a rate for this route yet. Message us on WhatsApp for a quote.",
     quoteWhatsapp: 'Get a quote on WhatsApp', tooMany: 'Large group: message us for a special quote.',

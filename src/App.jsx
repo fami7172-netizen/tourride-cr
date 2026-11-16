@@ -274,7 +274,7 @@ const OTHER = '__other';
 function TransfersTab({ nav }) {
   const store = useStore();
   const { t, lang, rates, settings, places: zones, fm, fm2 } = store;
-  const [d, setD] = useState({ from: 'Aeropuerto SJO', to: 'La Fortuna', fromOther: '', toOther: '', date: todayISO(3), time: '10:30', flight: '', pax: 4, bags: 4 });
+  const [d, setD] = useState({ from: 'Aeropuerto SJO', to: 'La Fortuna', fromOther: '', toOther: '', date: todayISO(3), time: '10:30', flight: '', notes: '', pax: 4, bags: 4 });
   const set = (k) => (e) => setD({ ...d, [k]: e && e.target ? e.target.value : e });
   const [chosen, setChosen] = useState(null);
   // "Otro lugar": el cliente escribe su propio origen o destino y se cotiza aparte
@@ -323,6 +323,9 @@ function TransfersTab({ nav }) {
           </Row>
           <Row icon={<Icon.plane />} label={t('flight')}>
             <input type="text" placeholder="AV 631" value={d.flight} onChange={set('flight')} />
+          </Row>
+          <Row icon={<span aria-hidden="true">✎</span>} label={t('notes')}>
+            <input type="text" maxLength={300} placeholder={t('notesHint')} value={d.notes} onChange={set('notes')} />
           </Row>
         </div>
 
@@ -682,7 +685,7 @@ function BookTransfer({ draft, nav }) {
     const b = {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       code: newCode(), type: 'transfer', createdAt: new Date().toISOString(), status: draft.quote ? 'quote' : 'pending', payment: pay,
-      customer: c, from: draft.from, to: draft.to, date: draft.date, time: draft.time, flight: draft.flight,
+      customer: c, from: draft.from, to: draft.to, date: draft.date, time: draft.time, flight: draft.flight, notes: String(draft.notes || '').trim().slice(0, 300),
       pax: draft.pax, bags: draft.bags, vehicleId: draft.vehicleId, total: draft.price || 0, deposit, commission: 0,
     };
     await send(b, submitBooking, setSending, setErr, t, nav);
@@ -695,6 +698,7 @@ function BookTransfer({ draft, nav }) {
         <Info icon={<Icon.plane />} text={`${zoneLabel(draft.from, lang)} → ${zoneLabel(draft.to, lang)}`} />
         <Info icon={<Icon.calendar width="18" height="18" />} text={`${fmtDate(draft.date, lang)} · ${fmtTime(draft.time, lang)}`} />
         {draft.flight && <Info icon={<Icon.plane />} text={`${t('flight').split(' (')[0]} ${draft.flight}`} />}
+        {String(draft.notes || '').trim() && <Info icon={<span aria-hidden="true">✎</span>} text={draft.notes.trim()} />}
         <Info icon={<Icon.car width="18" height="18" />} text={`${vehicle.name[lang]} · ${draft.pax} ${t('passengers').toLowerCase()} · ${draft.bags} ${t('luggage').toLowerCase()}`} />
       </div>
       <CustomerAndPayment c={c} setC={setC} pay={pay} setPay={setPay} />
@@ -885,6 +889,7 @@ function BookTour({ id, init = {}, nav }) {
   const [kids, setKids] = useState(init.kids || 0);
   const [pickup, setPickup] = useState(!!init.pickup);
   const [hotel, setHotel] = useState('');
+  const [notes, setNotes] = useState(init.notes || '');
   const [c, setC] = useState(profile);
   const [pay, setPay] = useState('sinpe');
   const [coupon, setCoupon] = useState('');
@@ -925,7 +930,7 @@ function BookTour({ id, init = {}, nav }) {
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       code: newCode(), type: 'tour', createdAt: new Date().toISOString(), status: 'pending', payment: pay,
       customer: c, tourId: tour.id, tourName: tour.name, partnerId: tour.partnerId, location: tour.location,
-      date, time, adults, kids, pickup, hotel: pickup ? hotel : '', coupon: discountPct ? coupon.toUpperCase() : '',
+      date, time, adults, kids, pickup, hotel: pickup ? hotel : '', notes: notes.trim().slice(0, 300), coupon: discountPct ? coupon.toUpperCase() : '',
       tourAmount, discount, pickupAmount, total, deposit, commission: 0, // la comisión la calcula el panel
     };
     await send(b, submitBooking, setSending, setErr, t, nav);
@@ -961,6 +966,7 @@ function BookTour({ id, init = {}, nav }) {
       {pickup && (
         <div className="card form"><Field label={t('hotel')}><input value={hotel} onChange={(e) => setHotel(e.target.value)} /></Field></div>
       )}
+      <div className="card form"><Field label={t('notes')}><input maxLength={300} placeholder={t('notesHint')} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field></div>
       <CustomerAndPayment c={c} setC={setC} pay={pay} setPay={setPay} />
       <h3 className="section">{t('coupon')}</h3>
       <div className="coupon">
@@ -1013,6 +1019,7 @@ function bookingText(b, t, lang, fm2) {
     b.type === 'tour' ? `${b.adults} ${t('adults').toLowerCase()}, ${b.kids} ${t('children').toLowerCase()}` : `${b.pax} ${t('passengers').toLowerCase()}`,
     b.hotel ? `${t('hotel')}: ${b.hotel}` : '',
     b.flight ? `${t('flight').split(' (')[0]}: ${b.flight}` : '',
+    b.notes ? `${t('notesShort')}: ${b.notes}` : '',
     b.status === 'quote' ? `${t('total')}: ${t('quote')}` : `${t('total')}: ${fm2(b.total)}`,
     `${t('status')}: ${t(b.status)}`,
   ];
@@ -1049,6 +1056,7 @@ function BookingDone({ id, nav }) {
         {b.type === 'tour'
           ? <Info icon={<Icon.users />} text={`${b.adults} ${t('adults').toLowerCase()} · ${b.kids} ${t('children').toLowerCase()}`} strong={money(b, t, fm)} />
           : <Info icon={<Icon.car width="18" height="18" />} text={`${vehicle?.name[lang]} · ${b.pax} ${t('passengers').toLowerCase()}`} strong={money(b, t, fm)} />}
+        {b.notes && <Info icon={<span aria-hidden="true">✎</span>} text={b.notes} />}
         <div className="info"><span className="row-icon">●</span><span>{t('status')}: <strong className={'st-' + b.status}>{t(b.status)}</strong></span></div>
       </div>
       {b.status === 'quote' && <p className="muted small">{t('quoteNote')}</p>}

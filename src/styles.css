@@ -276,7 +276,7 @@ button:disabled { opacity: 0.6; cursor: default; }
   .transfer-layout > .stack > * + * { margin-top: 0; }
   .transfer-layout > .stack:first-child > .perks { margin-top: auto; }
   .transfer-layout > .stack:last-child > .btn-gold { margin-top: auto; }
-  .transfer-layout > .stack:last-child > .card.vehicle { flex: 1 1 auto; max-height: 150px; }
+  .transfer-layout > .stack:last-child > .card.vehicle { flex: 1 1 auto; max-height: 170px; }
   .transfer-layout .ride-when { display: none; }
   .detail-hero { height: 420px !important; }
 
@@ -434,3 +434,4 @@ button:disabled { opacity: 0.6; cursor: default; }
 .card.notice { border-color: rgba(212, 175, 55, .5); margin: 0 0 12px; }
 .review-page .star-pick { justify-content: center; }
 .review-logo { border-radius: 14px; }
+.admin-notes { background: rgba(242, 196, 90, .10); border-left: 3px solid var(--gold); padding: 6px 10px; border-radius: 8px; margin: 4px 0; }
