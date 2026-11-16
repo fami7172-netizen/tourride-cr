@@ -13,12 +13,12 @@ const palettes = {
   beach: ['#ffe0a3', '#5cc6d6', '#1b6f5c'],
 };
 
-export default function Scene({ scene = 'jungle', photo, noPhoto, className = '', height = 140, rounded = 16, children }) {
+export default function Scene({ scene = 'jungle', photo, alt = '', noPhoto, className = '', height = 140, rounded = 16, children }) {
   const src = noPhoto ? null : photos[photo] || photos[scene];
   if (src) {
     return (
       <div className={"scene " + className} style={{ height, borderRadius: rounded }}>
-        <img src={src} alt="" className="scene-photo" loading="lazy" />
+        <img src={src} alt={alt} className="scene-photo" loading="lazy" />
         {children}
       </div>
     );

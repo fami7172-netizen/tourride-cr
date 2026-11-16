@@ -537,6 +537,11 @@ function Settings({ nav }) {
       <Field label="Nombre del negocio"><input value={f.businessName} onChange={set('businessName')} /></Field>
       <Field label="WhatsApp del negocio (con 506)"><input value={f.whatsapp} inputMode="tel" onChange={set('whatsapp')} /></Field>
       <div className="grid2">
+        <Field label="Correo del negocio (opcional)"><input type="email" value={f.email || ''} onChange={set('email')} placeholder="reservas@minegocio.com" /></Field>
+        <Field label="Número de licencia ICT (opcional)"><input value={f.ictLicense || ''} onChange={set('ictLicense')} /></Field>
+      </div>
+      <p className="muted small">El correo y la licencia del ICT se muestran al pie de la página y en Perfil, para dar más confianza.</p>
+      <div className="grid2">
         <Field label="Tipo de cambio (₡ por $)"><input type="number" value={f.exchangeRate} onChange={set('exchangeRate', true)} /></Field>
         <Field label="Transporte hotel ($/persona)"><input type="number" value={f.hotelPickupPerPerson} onChange={set('hotelPickupPerPerson', true)} /></Field>
         <Field label="Salidas del shuttle (ej: 07:30, 14:00)"><input value={(f.shuttleTimes || []).join(', ')} onChange={(e) => setF({ ...f, shuttleTimes: e.target.value.split(',').map((x) => x.trim()).filter(Boolean) })} /></Field>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { StoreProvider, useStore, useDayBookings, ratingOf, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
 import { vehicleTypes } from './data.js';
 import Scene from './Scene.jsx';
@@ -16,19 +16,90 @@ export default function App() {
 }
 
 // ---------- navegación ----------
+// Cada sección tiene su propio enlace (#/tours, #/tour/t3...) y el botón "atrás" del celular funciona.
+const TAB_PATH = { transfers: '#/', explore: '#/tours', bookings: '#/mis-reservas', profile: '#/perfil' };
+function routeHash({ tab, stack }) {
+  const s = stack[stack.length - 1];
+  if (!s) return TAB_PATH[tab] || '#/';
+  if (s.name === 'tour') return `#/tour/${s.id}`;
+  if (s.name === 'bookTour') return `#/tour/${s.id}/reservar`;
+  if (s.name === 'bookTransfer') return '#/traslado';
+  if (s.name === 'booking') return `#/reserva/${s.id}`;
+  if (s.name === 'admin') return '#/admin';
+  return '#/';
+}
+function parseHash(hash) {
+  const [a, b, c] = String(hash || '').replace(/^#\/?/, '').split('/').map(decodeURIComponent);
+  if (a === 'tours') return { tab: 'explore', stack: [] };
+  if (a === 'mis-reservas') return { tab: 'bookings', stack: [] };
+  if (a === 'perfil') return { tab: 'profile', stack: [] };
+  if (a === 'tour' && b) return { tab: 'explore', stack: [{ name: 'tour', id: b }, ...(c === 'reservar' ? [{ name: 'bookTour', id: b }] : [])] };
+  if (a === 'reserva' && b) return { tab: 'bookings', stack: [{ name: 'booking', id: b }] };
+  if (a === 'admin') return { tab: 'profile', stack: [{ name: 'admin' }] };
+  return { tab: 'transfers', stack: [] };
+}
+function initialRoute() {
+  const st = window.history.state;
+  if (st && st.tab && Array.isArray(st.stack)) return { tab: st.tab, stack: st.stack, depth: st.depth || 0 };
+  return { ...parseHash(window.location.hash), depth: 0 };
+}
+
 function Shell() {
-  const { settings } = useStore();
-  const [tab, setTab] = useState('transfers');
-  const [stack, setStack] = useState([]); // pantallas encima de las pestañas
+  const { settings, tours, bookings, t, lang } = useStore();
+  const [route, setRoute] = useState(initialRoute);
+  const routeRef = useRef(route);
   const [toast, setToast] = useState('');
-  const screen = stack[stack.length - 1];
+
+  const apply = (r, mode) => {
+    routeRef.current = r;
+    setRoute(r);
+    const url = routeHash(r);
+    try {
+      if (mode === 'push') window.history.pushState(r, '', url);
+      else window.history.replaceState(r, '', url);
+    } catch (e) { /* ignorar */ }
+  };
+
+  useEffect(() => {
+    apply(routeRef.current, 'replace');
+    const onPop = (e) => {
+      const r = e.state && e.state.tab ? e.state : { ...parseHash(window.location.hash), depth: 0 };
+      routeRef.current = r;
+      setRoute(r);
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nav = useMemo(() => ({
-    push: (s) => { setStack((st) => [...st, s]); window.scrollTo(0, 0); },
-    back: () => setStack((st) => st.slice(0, -1)),
-    reset: (t) => { setStack([]); if (t) setTab(t); window.scrollTo(0, 0); },
+    push: (s) => { const r = routeRef.current; apply({ tab: r.tab, stack: [...r.stack, s], depth: (r.depth || 0) + 1 }, 'push'); window.scrollTo(0, 0); },
+    back: () => {
+      const r = routeRef.current;
+      if (r.depth > 0) window.history.back(); // vuelve como el botón "atrás" del celular
+      else apply({ tab: r.tab, stack: r.stack.slice(0, -1), depth: 0 }, 'replace');
+    },
+    reset: (tb) => { const r = routeRef.current; apply({ tab: tb || r.tab, stack: [], depth: (r.depth || 0) + 1 }, 'push'); window.scrollTo(0, 0); },
     toast: (txt) => { setToast(txt); setTimeout(() => setToast(''), 2200); },
-  }), []);
+  }), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const go = (tb) => { const r = routeRef.current; if (tb === r.tab && !r.stack.length) return window.scrollTo(0, 0); apply({ tab: tb, stack: [], depth: (r.depth || 0) + 1 }, 'push'); window.scrollTo(0, 0); };
+
+  // Si un enlace apunta a algo que no existe (tour borrado, reserva de otro celular), se muestra la sección.
+  let { tab, stack } = route;
+  let screen = stack[stack.length - 1];
+  if ((screen?.name === 'tour' || screen?.name === 'bookTour') && tours.length && !tours.some((x) => x.id === screen.id)) screen = null;
+  if (screen?.name === 'booking' && !bookings.some((x) => x.id === screen.id)) screen = null;
+  if (screen?.name === 'bookTransfer' && !screen.draft) screen = null;
+  if (!screen) stack = [];
+
+  // Título de la pestaña del navegador según la sección
+  useEffect(() => {
+    const name = settings.businessName || 'TourRide CR';
+    const tour = screen && (screen.name === 'tour' || screen.name === 'bookTour') ? tours.find((x) => x.id === screen.id) : null;
+    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
+    document.title = part ? `${part} · ${name}` : `${name} · ${t('heroTitle')}`;
+  }, [tab, screen, lang, settings.businessName, tours]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let content;
   if (screen?.name === 'tour') content = <TourDetail id={screen.id} nav={nav} />;
@@ -41,7 +112,6 @@ function Shell() {
   else if (tab === 'bookings') content = <BookingsTab nav={nav} />;
   else content = <ProfileTab nav={nav} />;
 
-  const go = (t) => { setStack([]); setTab(t); window.scrollTo(0, 0); };
   return (
     <div className="app">
       <TopNav tab={screen ? null : tab} go={go} />
@@ -49,7 +119,7 @@ function Shell() {
         {content}
       </main>
       {screen?.name !== 'admin' && <Footer go={go} />}
-      {!screen && <BottomNav tab={tab} setTab={(t) => { setTab(t); window.scrollTo(0, 0); }} />}
+      {!screen && <BottomNav tab={tab} setTab={go} />}
       {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
     </div>
@@ -67,10 +137,10 @@ function BottomNav({ tab, setTab }) {
   return (
     <nav className="bottom-nav">
       {items.map(([id, I, label]) => (
-        <button key={id} className={tab === id ? 'active' : ''} onClick={() => setTab(id)}>
+        <a key={id} href={TAB_PATH[id]} className={tab === id ? 'active' : ''} aria-current={tab === id ? 'page' : undefined} onClick={(e) => { e.preventDefault(); setTab(id); }}>
           <I />
           <span>{label}</span>
-        </button>
+        </a>
       ))}
     </nav>
   );
@@ -84,12 +154,12 @@ function TopNav({ tab, go }) {
     <header className="topnav desk-only">
       <div className="topnav-in">
         <button className="brand" onClick={() => go('transfers')}>
-          <img src="icon-192.png" alt="" width="38" height="38" />
+          <img src="icon-192.png" alt={settings.businessName} width="38" height="38" />
           <span>{settings.businessName}</span>
         </button>
         <nav className="topnav-links">
           {items.map(([id, label]) => (
-            <button key={id} className={tab === id ? 'on' : ''} onClick={() => go(id)}>{label}</button>
+            <a key={id} href={TAB_PATH[id]} className={tab === id ? 'on' : ''} aria-current={tab === id ? 'page' : undefined} onClick={(e) => { e.preventDefault(); go(id); }}>{label}</a>
           ))}
         </nav>
         <LangToggle inline />
@@ -118,6 +188,8 @@ function Footer({ go }) {
         <div>
           <h4>{t('footerContact')}</h4>
           <a className="footer-link" href={waLink(settings.whatsapp, 'Hola TourRide CR 👋')} target="_blank" rel="noreferrer">WhatsApp +{settings.whatsapp}</a>
+          {settings.email && <a className="footer-link" href={`mailto:${settings.email}`}>{settings.email}</a>}
+          {settings.ictLicense && <span className="footer-link muted">{t('ictLicense')}: {settings.ictLicense}</span>}
           <span className="footer-link muted">Costa Rica 🇨🇷</span>
         </div>
       </div>
@@ -172,7 +244,9 @@ function transferOptions(rate, pax, bags, free) {
     // de las busetas/buses privados, solo el que le queda justo al grupo y uno más grande
     .filter((v, i, list) => v.perPerson || v.id === 'suv' || list.filter((x) => !x.perPerson && x.id !== 'suv').slice(0, 2).includes(v))
     .map((v) => ({ v, unit: Number(rate[v.id]), total: v.perPerson ? Number(rate[v.id]) * pax : Number(rate[v.id]) }))
-    .sort((x, y) => x.total - y.total);
+    .sort((x, y) => x.total - y.total)
+    // el shuttle compartido solo se ofrece si le sale más barato al grupo que un vehículo privado
+    .filter((o, _, list) => !o.v.perPerson || !list.some((x) => !x.v.perPerson && x.total <= o.total));
 }
 
 // ---------- TRASLADOS ----------
@@ -236,6 +310,12 @@ function TransfersTab({ nav }) {
           <Counter label={t('passengers')} icon={<Icon.users />} value={d.pax} min={1} max={45} onChange={set('pax')} />
           <Counter label={t('luggage')} icon={<Icon.bag />} value={d.bags} min={0} max={45} onChange={set('bags')} />
         </div>
+        <ul className="card perks desk-only">
+          <li>💵 {t('perk1')}</li>
+          <li>📲 {t('perk2')}</li>
+          <li>✅ {t('perk3')}</li>
+          {settings.cancelPolicy?.[lang] && <li>🛡️ {settings.cancelPolicy[lang]}</li>}
+        </ul>
         </div>
         <div className="stack">
 
@@ -244,7 +324,7 @@ function TransfersTab({ nav }) {
             <>
               <h3 className="section">{t('chooseRide')}</h3>
               <div className="card vehicle on">
-                <div className="vehicle-img">{photos[quoteVehicle.id] ? <img src={photos[quoteVehicle.id]} alt="" /> : <span>{quoteVehicle.icon}</span>}</div>
+                <div className="vehicle-img">{photos[quoteVehicle.id] ? <img src={photos[quoteVehicle.id]} alt={quoteVehicle.name[lang]} /> : <span>{quoteVehicle.icon}</span>}</div>
                 <div className="vehicle-info">
                   <div className="vehicle-name">{quoteVehicle.name[lang]}</div>
                   <div className="gold big">{t('quote')}</div>
@@ -262,7 +342,7 @@ function TransfersTab({ nav }) {
             <h3 className="section">{t('chooseRide')}</h3>
             {options.map((o) => (
               <button key={o.v.id} type="button" className={'card vehicle' + (o.v.id === vehicle.id ? ' on' : '')} onClick={() => setChosen(o.v.id)}>
-                <div className="vehicle-img">{photos[o.v.id] ? <img src={photos[o.v.id]} alt="" /> : <span>{o.v.icon}</span>}</div>
+                <div className="vehicle-img">{photos[o.v.id] ? <img src={photos[o.v.id]} alt={o.v.name[lang]} /> : <span>{o.v.icon}</span>}</div>
                 <div className="vehicle-info">
                   <div className="vehicle-name">{o.v.name[lang]}</div>
                   <div className="muted small">{o.v.note[lang]}</div>
@@ -380,7 +460,7 @@ function HomeHero({ nav }) {
   return (
     <div className="hero home-hero"><div className="scene" style={{ height: 360, borderRadius: 0 }}>
       {heroSlides.map((src, i) => (
-        <img key={src} src={src} alt="" className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
+        <img key={src} src={src} alt={i === 0 ? t('heroAlt') : ''} className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
       ))}
       <div className="hero-shade" />
       <div className="hero-dots">
@@ -403,30 +483,26 @@ function HomeHero({ nav }) {
 
 // Catálogo de vehículos: capacidad, maletas, aire acondicionado y precio desde
 function FleetCatalog() {
-  const { t, lang, rates, fm } = useStore();
-  const list = vehicleTypes
-    .map((v) => {
-      const prices = rates.map((r) => Number(r[v.id])).filter((n) => n > 0);
-      return { v, from: prices.length ? Math.min(...prices) : null };
-    })
-    .filter((x) => x.from != null);
+  const { t, lang, rates } = useStore();
+  // solo los tipos de vehículo que tienen al menos una ruta con tarifa
+  const list = vehicleTypes.filter((v) => rates.some((r) => Number(r[v.id]) > 0)).map((v) => ({ v }));
   if (!list.length) return null;
   return (
     <div className="pad fleet-catalog">
       <div className="section-head"><h2>{t('ourFleet')}</h2></div>
       <p className="muted small fleet-sub">{t('ourFleetSub')}</p>
       <div className="fleet-grid">
-        {list.map(({ v, from }) => (
+        {list.map(({ v }) => (
           <div key={v.id} className="card fleet-card">
             <div className="fleet-img">{photos[v.id] ? <img src={photos[v.id]} alt={v.name[lang]} loading="lazy" /> : <span>{v.icon}</span>}</div>
             <div className="fleet-body">
               <div className="bold">{v.name[lang]}</div>
               <div className="fleet-facts small muted">
-                <span title={t('passengers')}><Icon.users /> {v.capacity}</span>
-                <span title={t('luggage')}><Icon.bag /> {v.luggage}</span>
+                <span><Icon.users /> {v.capacity} {t('passengers').toLowerCase()}</span>
+                <span><Icon.bag /> {v.luggage} {t('luggage').toLowerCase()}</span>
                 <span>{v.id === 'boat' ? `🛟 ${t('lifeJackets')}` : `❄️ ${t('ac')}`}</span>
               </div>
-              <div className="gold bold small">{t('from')} {fm(from)}{v.perPerson ? ` / ${t('perPerson')}` : ''}</div>
+              <div className="gold bold small">{v.note[lang]}</div>
             </div>
           </div>
         ))}
@@ -458,7 +534,7 @@ function HomeExtras({ nav }) {
           <div className="tour-grid">
             {featured.map((tour) => (
               <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-                <Scene scene={tour.scene} photo={'tour-' + tour.id} height={190} rounded={0} />
+                <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={190} rounded={0} />
                 <div className="tour-card-body">
                   <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
                   <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)}<Stars tourId={tour.id} /></div>
@@ -633,7 +709,7 @@ function ExploreTab({ nav }) {
           const p = tourPrices(tour, settings);
           return (
             <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-              <Scene scene={tour.scene} photo={'tour-' + tour.id} height={170} rounded={0} />
+              <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={170} rounded={0} />
               <div className="tour-card-body">
                 <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
                 <div className="gold small bold">{t('from')} {fm(p.adult)}<Stars tourId={tour.id} /></div>
@@ -659,7 +735,7 @@ function TourDetail({ id, nav }) {
 
   return (
     <>
-      <Scene scene={tour.scene} photo={'tour-' + tour.id} height={260} rounded={0} className="detail-hero">
+      <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={260} rounded={0} className="detail-hero">
         <div className="hero-shade" />
         <button className="round floating" onClick={nav.back} aria-label={t('back')}><Icon.back /></button>
       </Scene>
@@ -977,11 +1053,17 @@ function ProfileTab({ nav }) {
         <button className="btn-outline" onClick={() => { setProfile(c); nav.toast(t('saved')); }}>{t('save')}</button>
       </div>
       <a className="btn-gold" href={waLink(settings.whatsapp, 'Hola TourRide CR 👋')} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('contactUs')}</a>
+      {(settings.email || settings.ictLicense) && (
+        <p className="muted small center">
+          {settings.email && <a className="gold" href={`mailto:${settings.email}`}>{settings.email}</a>}
+          {settings.email && settings.ictLicense && ' · '}
+          {settings.ictLicense && `${t('ictLicense')}: ${settings.ictLicense}`}
+        </p>
+      )}
       <div className="card">
         <h3 className="card-title">📲 {t('install')}</h3>
         <p className="muted small">{t('installHelp')}</p>
       </div>
-      <button className="link" onClick={() => nav.push({ name: 'admin' })}>🔒 {t('admin')}</button>
     </div>
   );
 }
