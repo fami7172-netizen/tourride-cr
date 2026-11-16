@@ -18,6 +18,16 @@ export default function App() {
 // ---------- navegación ----------
 // Cada sección tiene su propio enlace (#/tours, #/tour/t3...) y el botón "atrás" del celular funciona.
 const TAB_PATH = { transfers: '#/', explore: '#/tours', bookings: '#/mis-reservas', profile: '#/perfil' };
+
+// Entrada secreta al panel: tocar 5 veces seguidas el logo de Perfil o el © del pie de página.
+function useSecretTaps(onOpen) {
+  const taps = useRef([]);
+  return () => {
+    const now = Date.now();
+    taps.current = [...taps.current.filter((x) => now - x < 2500), now];
+    if (taps.current.length >= 5) { taps.current = []; onOpen(); }
+  };
+}
 function routeHash({ tab, stack }) {
   const s = stack[stack.length - 1];
   if (!s) return TAB_PATH[tab] || '#/';
@@ -118,7 +128,7 @@ function Shell() {
       <main className={screen ? 'screen' : 'screen with-nav'} key={(screen?.name || tab) + (screen?.id || '')}>
         {content}
       </main>
-      {screen?.name !== 'admin' && <Footer go={go} />}
+      {screen?.name !== 'admin' && <Footer go={go} openAdmin={() => nav.push({ name: 'admin' })} />}
       {!screen && <BottomNav tab={tab} setTab={go} />}
       {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
@@ -170,8 +180,9 @@ function TopNav({ tab, go }) {
 }
 
 // Pie de página (computadora)
-function Footer({ go }) {
-  const { t, settings } = useStore();
+function Footer({ go, openAdmin }) {
+  const { t, settings, admin } = useStore();
+  const secret = useSecretTaps(openAdmin);
   return (
     <footer className="footer desk-only">
       <div className="footer-in">
@@ -193,7 +204,10 @@ function Footer({ go }) {
           <span className="footer-link muted">Costa Rica 🇨🇷</span>
         </div>
       </div>
-      <div className="footer-bottom muted small">© {new Date().getFullYear()} {settings.businessName}</div>
+      <div className="footer-bottom muted small">
+        <span onClick={secret}>© {new Date().getFullYear()} {settings.businessName}</span>
+        {admin && <button className="footer-panel" onClick={openAdmin}>🔒 {t('admin')}</button>}
+      </div>
     </footer>
   );
 }
@@ -1028,7 +1042,8 @@ function BookingsTab({ nav }) {
 
 // ---------- PERFIL ----------
 function ProfileTab({ nav }) {
-  const { t, lang, setLang, profile, setProfile, settings } = useStore();
+  const { t, lang, setLang, profile, setProfile, settings, admin } = useStore();
+  const secret = useSecretTaps(() => nav.push({ name: 'admin' }));
   const [c, setC] = useState(profile);
   useEffect(() => setC(profile), [profile]);
   const up = (k) => (e) => setC({ ...c, [k]: e.target.value });
@@ -1036,7 +1051,7 @@ function ProfileTab({ nav }) {
   return (
     <div className="pad stack narrow">
       <div className="center profile-brand">
-        <img src="icon-192.png" alt="TourRide CR" width="84" height="84" />
+        <img src="icon-192.png" alt={settings.businessName} width="84" height="84" onClick={secret} />
         <div className="bold">{settings.businessName}</div>
       </div>
       <h1 className="page-title">{t('profile')}</h1>
@@ -1064,6 +1079,7 @@ function ProfileTab({ nav }) {
         <h3 className="card-title">📲 {t('install')}</h3>
         <p className="muted small">{t('installHelp')}</p>
       </div>
+      {admin && <button className="link" onClick={() => nav.push({ name: 'admin' })}>🔒 {t('admin')}</button>}
     </div>
   );
 }
