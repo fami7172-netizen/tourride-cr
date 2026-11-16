@@ -4,6 +4,7 @@ import { vehicleTypes } from './data.js';
 import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
+import Assistant from './Assistant.jsx';
 import { photos } from './photos.js';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
 
 // ---------- navegación ----------
 function Shell() {
+  const { settings } = useStore();
   const [tab, setTab] = useState('transfers');
   const [stack, setStack] = useState([]); // pantallas encima de las pestañas
   const [toast, setToast] = useState('');
@@ -30,7 +32,7 @@ function Shell() {
 
   let content;
   if (screen?.name === 'tour') content = <TourDetail id={screen.id} nav={nav} />;
-  else if (screen?.name === 'bookTour') content = <BookTour id={screen.id} nav={nav} />;
+  else if (screen?.name === 'bookTour') content = <BookTour id={screen.id} init={screen.init} nav={nav} />;
   else if (screen?.name === 'bookTransfer') content = <BookTransfer draft={screen.draft} nav={nav} />;
   else if (screen?.name === 'booking') content = <BookingDone id={screen.id} nav={nav} />;
   else if (screen?.name === 'admin') content = <Admin nav={nav} />;
@@ -48,6 +50,7 @@ function Shell() {
       </main>
       {screen?.name !== 'admin' && <Footer go={go} />}
       {!screen && <BottomNav tab={tab} setTab={(t) => { setTab(t); window.scrollTo(0, 0); }} />}
+      {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
     </div>
   );
@@ -718,16 +721,16 @@ function TourDetail({ id, nav }) {
 }
 
 // ---------- RESERVAR TOUR ----------
-function BookTour({ id, nav }) {
+function BookTour({ id, init = {}, nav }) {
   const { t, lang, tours, settings, profile, setProfile, submitBooking, fm, fm2 } = useStore();
   const tour = tours.find((x) => x.id === id);
   const [sending, setSending] = useState(false);
   const prices = tourPrices(tour, settings);
-  const [date, setDate] = useState(todayISO(1));
-  const [time, setTime] = useState(tour.schedules[0]);
-  const [adults, setAdults] = useState(2);
-  const [kids, setKids] = useState(0);
-  const [pickup, setPickup] = useState(false);
+  const [date, setDate] = useState(init.date || todayISO(1));
+  const [time, setTime] = useState(tour.schedules.includes(init.time) ? init.time : tour.schedules[0]);
+  const [adults, setAdults] = useState(init.adults || 2);
+  const [kids, setKids] = useState(init.kids || 0);
+  const [pickup, setPickup] = useState(!!init.pickup);
   const [hotel, setHotel] = useState('');
   const [c, setC] = useState(profile);
   const [pay, setPay] = useState('sinpe');

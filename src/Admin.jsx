@@ -556,6 +556,10 @@ function Settings({ nav }) {
       <Field label="Política de cancelación (inglés)"><textarea rows="2" value={f.cancelPolicy.en} onChange={(e) => setF({ ...f, cancelPolicy: { ...f.cancelPolicy, en: e.target.value } })} /></Field>
       <label className="toggle"><input type="checkbox" checked={f.highSeason} onChange={(e) => setF({ ...f, highSeason: e.target.checked })} /> Temporada alta (usa precios altos)</label>
       <Field label="Cupones (CÓDIGO=porcentaje, uno por línea)"><textarea rows="3" value={f.couponsText} onChange={set('couponsText')} /></Field>
+      <h3 className="section">Asistente de IA (beta)</h3>
+      <label className="toggle"><input type="checkbox" checked={!!f.assistantEnabled} onChange={(e) => setF({ ...f, assistantEnabled: e.target.checked })} /> Mostrar el chat del asistente a los clientes</label>
+      <Field label="Máximo de preguntas por día (todos los clientes juntos)"><input type="number" min="0" value={f.assistantDailyLimit ?? 300} onChange={set('assistantDailyLimit', true)} /></Field>
+      <p className="muted small">El asistente responde con tus tours y tarifas, cotiza y deja la reserva lista para que el cliente la confirme; nunca confirma ni cobra solo. Necesita la cuenta de IA configurada en Supabase. Cada cliente puede hacer hasta 30 preguntas por día.</p>
       <button className="btn-gold" onClick={save}>Guardar ajustes</button>
     </div>
   );

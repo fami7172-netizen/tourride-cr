@@ -1,0 +1,4 @@
+# La app llama al asistente con la llave pública (no es un JWT), así que la función
+# no exige sesión; el límite diario y el interruptor del panel la protegen.
+[functions.assistant]
+verify_jwt = false

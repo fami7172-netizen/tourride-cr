@@ -162,3 +162,19 @@ export function updateBookingRow(b) {
     },
   });
 }
+
+// ---------- asistente de IA ----------
+// Respuestas: { reply, action } o un error ('disabled', 'limit', 'not_configured'...).
+export async function askAssistant(messages, lang) {
+  let res;
+  try {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/assistant`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages, lang }),
+    });
+  } catch (e) { return { error: 'network' }; }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { error: data.error || `http${res.status}` };
+  return data;
+}
