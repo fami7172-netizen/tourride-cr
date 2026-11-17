@@ -233,7 +233,7 @@ function Footer({ go, nav, withNav, openAdmin }) {
           <h4>{t('footerContact')}</h4>
           <p>{t('footerContactText')}</p>
           <p className="sf-lines">
-            <a href={wa} target="_blank" rel="noreferrer">WhatsApp +{settings.whatsapp}</a>
+            <a href={wa} target="_blank" rel="noreferrer">WhatsApp {fmtPhone(settings.whatsapp)}</a>
             {settings.email && <a href={`mailto:${settings.email}`}>{settings.email}</a>}
             {settings.ictLicense && <span>{t('ictLicense')}: {settings.ictLicense}</span>}
           </p>
@@ -308,6 +308,8 @@ function PlaceOptions({ zones }) {
   );
 }
 // Número de SINPE legible: 50688880000 → 8888-0000
+// Teléfono para mostrar: 50688880000 → +506 8888-0000
+const fmtPhone = (n) => { const d = String(n || '').replace(/\D/g, ''); return /^506\d{8}$/.test(d) ? `+506 ${d.slice(3, 7)}-${d.slice(7)}` : '+' + d; };
 export const fmtSinpe = (n) => { const d = String(n || '').replace(/\D/g, '').replace(/^506(?=\d{8}$)/, ''); return d.length === 8 ? d.slice(0, 4) + '-' + d.slice(4) : d; };
 
 function Hero({ scene, photo, title, sub, logo, height = 170 }) {
