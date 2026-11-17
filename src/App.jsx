@@ -1123,6 +1123,7 @@ function TourDetail({ id, nav }) {
         <p className="muted">{tour.desc[lang]}</p>
         <a className="btn-outline mobile-only wa-ask" href={waLink(settings.whatsapp, `Hola, tengo una consulta sobre el tour ${tour.name.es}.`)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('askWhatsapp')}</a>
 
+        <PracticalInfo tour={tour} nav={nav} />
         <div className="card list">
           <h3 className="card-title">{t('includes')}</h3>
           {tour.includes[lang].map((x) => <Info key={x} icon={<Icon.check />} text={x} />)}
@@ -1166,6 +1167,45 @@ function TourDetail({ id, nav }) {
         </button>
       </div>
     </>
+  );
+}
+
+// Datos prácticos del tour: salidas, punto de encuentro, idioma, grupo y cancelación.
+// Solo muestra lo que existe en el panel (o se deduce de él); no inventa datos.
+function PracticalInfo({ tour, nav }) {
+  const { t, lang, settings, fm } = useStore();
+  const times = (tour.schedules || []).filter(Boolean).map((x) => fmtTime(x, lang));
+  const meeting = tour.meeting?.[lang] || tour.meeting?.es || (settings.hotelPickupPerPerson > 0
+    ? t('meetPickup', { price: fm(settings.hotelPickupPerPerson), loc: tour.location })
+    : t('meetPlace', { loc: tour.location }));
+  const bilingual = [...(tour.includes?.es || []), ...(tour.includes?.en || [])].some((x) => /biling/i.test(x));
+  const language = tour.languages?.[lang] || tour.languages?.es || (bilingual ? t('langBoth') : '');
+  const cancel = settings.cancelPolicy?.[lang] || settings.cancelPolicy?.es;
+  const rows = [
+    times.length > 0 && { icon: <Icon.clock />, label: t('piDepartures'), text: t('piDeparturesText', { times: times.join(' · '), h: tour.duration }) },
+    { icon: <Icon.pin />, label: t('piMeeting'), text: meeting },
+    language && { icon: <Icon.chat />, label: t('piLanguage'), text: language },
+    tour.capacity > 0 && { icon: <Icon.users />, label: t('piGroup'), text: t('piGroupText', { n: tour.capacity }) },
+  ].filter(Boolean);
+  return (
+    <div className="card practical">
+      <h3 className="card-title">{t('piTitle')}</h3>
+      <dl className="pi-list">
+        {rows.map((r) => (
+          <div className="pi-row" key={r.label}>
+            <span className="pi-icon" aria-hidden="true">{r.icon}</span>
+            <div><dt>{r.label}</dt><dd>{r.text}</dd></div>
+          </div>
+        ))}
+        <div className="pi-row">
+          <span className="pi-icon" aria-hidden="true"><Icon.check /></span>
+          <div>
+            <dt>{t('piCancel')}</dt>
+            <dd>{cancel || t('cancelNone')} <button className="link-btn gold" onClick={() => nav.push({ name: 'info', id: 'cancelacion' })}>{t('piCancelMore')}</button></dd>
+          </div>
+        </div>
+      </dl>
+    </div>
   );
 }
 
@@ -1454,6 +1494,7 @@ function BookingsTab({ nav }) {
           <button className="btn-gold" onClick={() => nav.reset('explore')}>{t('exploreTours')}</button>
         </div>
       )}
+      <FindBooking nav={nav} />
       {mine.map((b) => (
         <button key={b.id} className="card booking-item" onClick={() => nav.push({ name: 'booking', id: b.id })}>
           <div className="bi-top">
@@ -1466,6 +1507,39 @@ function BookingsTab({ nav }) {
       ))}
       {profile.name && <p className="muted small center">{profile.name}</p>}
     </div>
+  );
+}
+
+// Consultar una reserva con el código y el teléfono (sirve desde cualquier celular o computadora).
+function FindBooking({ nav }) {
+  const { t, findBooking } = useStore();
+  const [code, setCode] = useState('');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!code.trim() || phone.replace(/\D/g, '').length < 8) { setErr(t('findMissing')); return; }
+    setBusy(true); setErr('');
+    try {
+      const b = await findBooking(code, phone);
+      if (b) nav.push({ name: 'booking', id: b.id });
+      else setErr(t('findNone'));
+    } catch {
+      setErr(t('findOffline'));
+    } finally { setBusy(false); }
+  };
+  return (
+    <form className="card form find-booking" onSubmit={submit}>
+      <h3 className="fb-title">{t('findTitle')}</h3>
+      <p className="muted small">{t('findSub')}</p>
+      <div className="fb-row">
+        <Field label={t('findCode')}><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="TR-12345" autoCapitalize="characters" autoComplete="off" /></Field>
+        <Field label={t('phone')}><input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="8888-0000" /></Field>
+      </div>
+      {err && <p className="fb-error small" role="alert">{err}</p>}
+      <button className="btn-outline" type="submit" disabled={busy}>{busy ? t('findBusy') : t('findButton')}</button>
+    </form>
   );
 }
 

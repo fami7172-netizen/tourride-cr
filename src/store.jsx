@@ -205,6 +205,18 @@ export function StoreProvider({ children }) {
           return r ? { ...b, status: r.status, total: Number(r.total), deposit: Number(r.deposit), receipt: r.details?.receipt || b.receipt } : b;
         }));
       },
+      // Busca una reserva por código y teléfono (por ejemplo, hecha en otro celular) y la guarda aquí.
+      findBooking: async (code, phone) => {
+        let c = code.trim().toUpperCase().replace(/\s+/g, '');
+        if (/^\d+$/.test(c)) c = 'TR-' + c;
+        if (/^TR\d/.test(c)) c = 'TR-' + c.slice(2);
+        const row = await cloud.getMyBooking(c, phone);
+        if (!row) return null;
+        const b = { ...cloud.rowToBooking(row), cloud: true };
+        b.customer = { ...b.customer, phone };
+        set('bookings', (list) => [b, ...list.filter((x) => x.code !== b.code)]);
+        return b;
+      },
       sendReceipt: async (b, file) => {
         const path = await cloud.uploadReceipt(b.code, b.customer.phone, file);
         set('bookings', (list) => list.map((x) => (x.id === b.id ? { ...x, receipt: path } : x)));

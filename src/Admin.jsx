@@ -537,6 +537,13 @@ function TourForm({ tour, onSave, onCancel, onDelete }) {
       <Field label="Qué incluye (inglés)"><textarea rows="3" value={lines(f.includes.en)} onChange={setList('includes', 'en')} /></Field>
       <Field label="Qué llevar (uno por línea, español)"><textarea rows="3" value={lines(f.bring.es)} onChange={setList('bring', 'es')} /></Field>
       <Field label="Qué llevar (inglés)"><textarea rows="3" value={lines(f.bring.en)} onChange={setList('bring', 'en')} /></Field>
+      <h4 className="form-sub">Datos prácticos (opcional: si se deja vacío, la página muestra la recogida en hotel y la ubicación)</h4>
+      <Field label="Punto de encuentro o recogida (español)"><textarea rows="2" value={f.meeting?.es || ''} onChange={setL('meeting', 'es')} placeholder="Ej.: Recogemos en hoteles de La Fortuna 30 min antes. También puedes llegar a la oficina del socio." /></Field>
+      <Field label="Punto de encuentro o recogida (inglés)"><textarea rows="2" value={f.meeting?.en || ''} onChange={setL('meeting', 'en')} /></Field>
+      <div className="grid2">
+        <Field label="Idioma del guía (español)"><input value={f.languages?.es || ''} onChange={setL('languages', 'es')} placeholder="Ej.: Español e inglés" /></Field>
+        <Field label="Idioma del guía (inglés)"><input value={f.languages?.en || ''} onChange={setL('languages', 'en')} placeholder="E.g.: Spanish and English" /></Field>
+      </div>
       <label className="toggle"><input type="checkbox" checked={f.featured} onChange={(e) => setF({ ...f, featured: e.target.checked })} /> Destacado (sale primero)</label>
       <label className="toggle"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} /> Visible para clientes</label>
       <div className="grid2">

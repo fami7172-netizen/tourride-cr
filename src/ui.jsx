@@ -62,6 +62,11 @@ export const Icon = {
       <rect x="5" y="7" width="14" height="13" rx="2" /><path d="M9 7V4h6v3M9 11v5M15 11v5" />
     </svg>
   ),
+  chat: (p) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 5h16v11H9l-5 4z" /><path d="M8 9h8M8 12h5" />
+    </svg>
+  ),
   leaf: (p) => (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M5 19c0-9 6-14 15-14 0 9-5 15-14 15z" /><path d="M5 19l8-8" />
