@@ -25,11 +25,15 @@ function fresh() {
 }
 
 function load() {
+  let st = fresh();
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return migrate({ ...fresh(), ...JSON.parse(raw) });
+    if (raw) st = migrate({ ...fresh(), ...JSON.parse(raw) });
   } catch (e) { /* sin almacenamiento: seguimos en memoria */ }
-  return fresh();
+  // ?lang=en en el enlace (por ejemplo, desde las páginas en inglés de cada tour o ruta)
+  const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('lang') : null;
+  if (q === 'es' || q === 'en') st = { ...st, lang: q };
+  return st;
 }
 
 // Agrega tarifas, rutas y ajustes nuevos sin borrar lo que el dueño ya cambió.

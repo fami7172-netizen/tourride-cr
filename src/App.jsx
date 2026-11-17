@@ -193,7 +193,7 @@ function TopNav({ tab, go, openAdmin }) {
 
 // Pie de página (todas las páginas, en computadora y en celular)
 function Footer({ go, nav, withNav, openAdmin }) {
-  const { t, settings } = useStore();
+  const { t, lang, settings } = useStore();
   const secret = useSecretTaps(openAdmin);
   const wa = waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋');
   const toSection = (id) => (e) => {
@@ -221,6 +221,7 @@ function Footer({ go, nav, withNav, openAdmin }) {
           <a href="#/" onClick={toSection('flota')}>{t('footerFleet')}</a>
           <a href={TAB_PATH.explore} onClick={tab('explore')}>{t('navTours')}</a>
           <a href="#/" onClick={toSection('como-funciona')}>{t('howTitleShort')}</a>
+          <a href={lang === 'en' ? 'en/routes/' : 'rutas/'}>{t('footerAllRoutes')}</a>
         </nav>
         <nav className="sf-col" aria-label={t('footerHelp')}>
           <h4>{t('footerHelp')}</h4>
@@ -377,7 +378,16 @@ function PriceSummary({ total, ri, boat }) {
 function TransfersTab({ nav }) {
   const store = useStore();
   const { t, lang, rates, settings, places: zones, fm, fm2 } = store;
-  const [d, setD] = useState({ from: 'Aeropuerto SJO', to: 'La Fortuna', fromOther: '', toOther: '', date: todayISO(3), time: '10:30', flight: '', notes: '', pax: 4, bags: 4 });
+  // #/ruta/<origen>/<destino> (desde las páginas de cada ruta) deja la ruta ya escogida
+  const [d, setD] = useState(() => {
+    const m = window.location.hash.match(/^#\/ruta\/([^/]+)\/([^/?]+)/);
+    const pick = (x) => { try { x = decodeURIComponent(x); } catch (e) { return null; } return zones.includes(x) ? x : null; };
+    const pf = m && pick(m[1]); const pt = m && pick(m[2]);
+    return { from: pf || 'Aeropuerto SJO', to: pt && pt !== pf ? pt : (pf === 'La Fortuna' ? 'Aeropuerto SJO' : 'La Fortuna'), fromOther: '', toOther: '', date: todayISO(3), time: '10:30', flight: '', notes: '', pax: 4, bags: 4 };
+  });
+  useEffect(() => {
+    if (/^#\/ruta\//.test(window.location.hash)) setTimeout(() => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+  }, []);
   const set = (k) => (e) => setD({ ...d, [k]: e && e.target ? e.target.value : e });
   const [chosen, setChosen] = useState(null);
   // "Otro lugar": el cliente escribe su propio origen o destino y se cotiza aparte
