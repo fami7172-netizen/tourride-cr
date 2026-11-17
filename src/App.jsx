@@ -30,6 +30,7 @@ function useSecretTaps(onOpen) {
     return false;
   };
 }
+const INFO_PAGES = ['cancelacion', 'privacidad'];
 function routeHash({ tab, stack }) {
   const s = stack[stack.length - 1];
   if (!s) return TAB_PATH[tab] || '#/';
@@ -39,6 +40,7 @@ function routeHash({ tab, stack }) {
   if (s.name === 'booking') return `#/reserva/${s.id}`;
   if (s.name === 'admin') return '#/admin';
   if (s.name === 'review') return `#/opinar/${s.code}`;
+  if (s.name === 'info') return `#/info/${s.id}`;
   return '#/';
 }
 function parseHash(hash) {
@@ -49,6 +51,7 @@ function parseHash(hash) {
   if (a === 'tour' && b) return { tab: 'explore', stack: [{ name: 'tour', id: b }, ...(c === 'reservar' ? [{ name: 'bookTour', id: b }] : [])] };
   if (a === 'reserva' && b) return { tab: 'bookings', stack: [{ name: 'booking', id: b }] };
   if (a === 'admin') return { tab: 'profile', stack: [{ name: 'admin' }] };
+  if (a === 'info' && INFO_PAGES.includes(b)) return { tab: 'profile', stack: [{ name: 'info', id: b }] };
   if (a === 'opinar' && /^TR-\d{5}$/i.test(b || '')) return { tab: 'bookings', stack: [{ name: 'review', code: b.toUpperCase() }] };
   return { tab: 'transfers', stack: [] };
 }
@@ -111,7 +114,7 @@ function Shell() {
   useEffect(() => {
     const name = settings.businessName || 'TourRide CR';
     const tour = screen && (screen.name === 'tour' || screen.name === 'bookTour') ? tours.find((x) => x.id === screen.id) : null;
-    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : screen.name === 'review' ? t('leaveReview') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
+    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : screen.name === 'review' ? t('leaveReview') : screen.name === 'info' ? t(screen.id === 'privacidad' ? 'privacyTitle' : 'policyTitle') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
     document.title = part ? `${part} · ${name}` : `${name} · ${t('heroTitle')}`;
   }, [tab, screen, lang, settings.businessName, tours]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -122,6 +125,7 @@ function Shell() {
   else if (screen?.name === 'booking') content = <BookingDone id={screen.id} nav={nav} />;
   else if (screen?.name === 'admin') content = <Admin nav={nav} />;
   else if (screen?.name === 'review') content = <ReviewPage code={screen.code} nav={nav} />;
+  else if (screen?.name === 'info') content = <InfoPage id={screen.id} nav={nav} />;
   else if (tab === 'transfers') content = <TransfersTab nav={nav} />;
   else if (tab === 'explore') content = <ExploreTab nav={nav} />;
   else if (tab === 'bookings') content = <BookingsTab nav={nav} />;
@@ -133,7 +137,7 @@ function Shell() {
       <main className={screen ? 'screen' : 'screen with-nav'} key={(screen?.name || tab) + (screen?.id || '')}>
         {content}
       </main>
-      {screen?.name !== 'admin' && <Footer go={go} openAdmin={() => nav.push({ name: 'admin' })} />}
+      {screen?.name !== 'admin' && <Footer go={go} nav={nav} withNav={!screen} openAdmin={() => nav.push({ name: 'admin' })} />}
       {!screen && <BottomNav tab={tab} setTab={go} />}
       {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin', 'review'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
@@ -185,36 +189,89 @@ function TopNav({ tab, go, openAdmin }) {
   );
 }
 
-// Pie de página (computadora)
-function Footer({ go, openAdmin }) {
-  const { t, settings, admin } = useStore();
+// Pie de página (todas las páginas, en computadora y en celular)
+function Footer({ go, nav, withNav, openAdmin }) {
+  const { t, settings } = useStore();
   const secret = useSecretTaps(openAdmin);
+  const wa = waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋');
+  const toFleet = (e) => {
+    e.preventDefault();
+    go('transfers');
+    setTimeout(() => document.getElementById('flota')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+  };
+  const info = (id) => (e) => { e.preventDefault(); nav.push({ name: 'info', id }); };
+  const tab = (id) => (e) => { e.preventDefault(); go(id); };
   return (
-    <footer className="footer desk-only">
-      <div className="footer-in">
-        <div>
-          <div className="brand static"><img src="icon-192.png" alt="" width="34" height="34" /><span>{settings.businessName}</span></div>
-          <p className="muted small">{t('footerAbout')}</p>
+    <footer className={'site-footer' + (withNav ? ' with-nav' : '')}>
+      <div className="sf-in">
+        <div className="sf-about">
+          <div className="sf-brand"><img src="icon-192.png" alt="" width="40" height="40" /><span>{settings.businessName}</span></div>
+          <p>{t('footerAbout')}</p>
+          <svg className="sf-route" viewBox="0 0 200 20" aria-hidden="true">
+            <circle cx="3" cy="14" r="3" />
+            <path d="M8 14 H60 C72 14 74 5 84 5 C94 5 96 14 108 14 H186" />
+            <circle cx="194" cy="14" r="3" />
+          </svg>
         </div>
-        <div>
+        <nav className="sf-col" aria-label={t('footerExplore')}>
           <h4>{t('footerExplore')}</h4>
-          <button className="footer-link" onClick={() => go('transfers')}>{t('transfers')}</button>
-          <button className="footer-link" onClick={() => go('explore')}>{t('navTours')}</button>
-          <button className="footer-link" onClick={() => go('bookings')}>{t('bookings')}</button>
-        </div>
-        <div>
+          <a href={TAB_PATH.transfers} onClick={tab('transfers')}>{t('footerTransfers')}</a>
+          <a href="#/" onClick={toFleet}>{t('footerFleet')}</a>
+          <a href={TAB_PATH.explore} onClick={tab('explore')}>{t('navTours')}</a>
+        </nav>
+        <nav className="sf-col" aria-label={t('footerHelp')}>
+          <h4>{t('footerHelp')}</h4>
+          <a href={TAB_PATH.bookings} onClick={tab('bookings')}>{t('footerMyBooking')}</a>
+          <a href={wa} target="_blank" rel="noreferrer">{t('footerContact')}</a>
+          <a href="#/info/cancelacion" onClick={info('cancelacion')}>{t('footerCancel')}</a>
+          <a href="#/info/privacidad" onClick={info('privacidad')}>{t('footerPrivacy')}</a>
+        </nav>
+        <div className="sf-col sf-contact">
           <h4>{t('footerContact')}</h4>
-          <a className="footer-link" href={waLink(settings.whatsapp, 'Hola TourRide CR 👋')} target="_blank" rel="noreferrer">WhatsApp +{settings.whatsapp}</a>
-          {settings.email && <a className="footer-link" href={`mailto:${settings.email}`}>{settings.email}</a>}
-          {settings.ictLicense && <span className="footer-link muted">{t('ictLicense')}: {settings.ictLicense}</span>}
-          <span className="footer-link muted">Costa Rica 🇨🇷</span>
+          <p>{t('footerContactText')}</p>
+          <p className="sf-lines">
+            <a href={wa} target="_blank" rel="noreferrer">WhatsApp +{settings.whatsapp}</a>
+            {settings.email && <a href={`mailto:${settings.email}`}>{settings.email}</a>}
+            {settings.ictLicense && <span>{t('ictLicense')}: {settings.ictLicense}</span>}
+          </p>
+          <a className="sf-cta" href={wa} target="_blank" rel="noreferrer">{t('footerWrite')}</a>
         </div>
       </div>
-      <div className="footer-bottom muted small">
-        <span onClick={secret}>© {new Date().getFullYear()} {settings.businessName}</span>
-        {admin && <button className="footer-panel" onClick={openAdmin}>🔒 {t('admin')}</button>}
+      <div className="sf-bottom">
+        <span onClick={secret}>© {new Date().getFullYear()} {settings.businessName}. {t('footerMade')}</span>
+        <div className="sf-bottom-links">
+          <a href="#/info/privacidad" onClick={info('privacidad')}>{t('footerPrivacy')}</a>
+          <a href="#/info/cancelacion" onClick={info('cancelacion')}>{t('footerCancel')}</a>
+          <a href="#/admin" onClick={(e) => { e.preventDefault(); openAdmin(); }}>{t('footerBusiness')}</a>
+          <LangToggle inline />
+        </div>
       </div>
     </footer>
+  );
+}
+
+// Páginas de información: política de cancelación y privacidad
+function InfoPage({ id, nav }) {
+  const { t, lang, settings } = useStore();
+  const name = settings.businessName;
+  const wa = waLink(settings.whatsapp, 'Hola ' + name + ' 👋');
+  const cancel = settings.cancelPolicy?.[lang] || settings.cancelPolicy?.es;
+  return (
+    <div className="pad stack narrow info-page">
+      <TopBar title={t(id === 'privacidad' ? 'privacyTitle' : 'policyTitle')} onBack={() => nav.back()} />
+      {id === 'cancelacion' ? (
+        <div className="card">
+          {cancel ? <p>{cancel}</p> : <p>{t('cancelNone')}</p>}
+          {settings.depositPct > 0 && <p>{t('depositNote', { n: settings.depositPct })}</p>}
+          <p className="muted">{t('cancelHow')}</p>
+        </div>
+      ) : (
+        <div className="card">
+          {[1, 2, 3, 4].map((n) => <p key={n}>{t('privacy' + n, { name })}</p>)}
+        </div>
+      )}
+      <a className="btn-outline" href={wa} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('contactUs')}</a>
+    </div>
   );
 }
 
@@ -659,7 +716,7 @@ function FleetCatalog() {
   const list = vehicleTypes.filter((v) => rates.some((r) => Number(r[v.id]) > 0)).map((v) => ({ v }));
   if (!list.length) return null;
   return (
-    <div className="pad fleet-catalog">
+    <div className="pad fleet-catalog" id="flota">
       <div className="section-head"><h2>{t('ourFleet')}</h2></div>
       <p className="muted small fleet-sub">{t('ourFleetSub')}</p>
       <div className="fleet-grid">
