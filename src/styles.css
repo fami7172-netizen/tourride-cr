@@ -267,7 +267,8 @@ button:disabled { opacity: 0.6; cursor: default; }
   /* el buscador de traslados sube sobre la foto */
   .transfer-layout { position: relative; margin-top: -96px; padding-top: 0; grid-template-columns: 5fr 6fr; }
   .transfer-layout > .stack:first-child { background: rgba(15, 53, 39, 0.96); border: 1px solid var(--line); border-radius: 24px; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
-  .transfer-layout > .stack:last-child { padding-top: 110px; }
+  .transfer-layout > .stack:last-child { background: rgba(15, 53, 39, 0.96); border: 1px solid var(--line); border-radius: 24px; padding: 18px; box-shadow: 0 20px 50px rgba(0,0,0,.35); }
+  .transfer-layout > .stack:last-child > .section:first-child { font-size: 18px; font-weight: 800; margin: 0; }
   .transfer-layout > .stack:last-child > .section:first-child { margin-top: 0 !important; }
   /* las dos columnas terminan a la misma altura: el botón de reservar queda abajo, alineado con el cuadro */
   .transfer-layout { align-items: stretch; }
@@ -275,7 +276,8 @@ button:disabled { opacity: 0.6; cursor: default; }
   .transfer-layout > .stack > * + * { margin-top: 0; }
   .transfer-layout > .stack:first-child > .perks { margin-top: auto; }
   .transfer-layout > .stack:last-child > .btn-gold { margin-top: auto; }
-  .transfer-layout > .stack:last-child .vehicle-img { width: 150px; height: 108px; }
+  .transfer-layout > .stack:last-child > .card.vehicle { flex: 1 1 auto; max-height: 150px; padding-top: 10px; padding-bottom: 10px; }
+  .transfer-layout > .stack:last-child .vehicle-img { width: 120px; height: 84px; }
   .transfer-layout .ride-when { display: none; }
   .detail-hero { height: 420px !important; }
 
