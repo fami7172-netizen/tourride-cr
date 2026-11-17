@@ -751,13 +751,13 @@ function FleetCatalog() {
           <div key={v.id} className="card fleet-card">
             <div className="fleet-img">{photos[v.id] ? <img src={photos[v.id]} alt={v.name[lang]} loading="lazy" /> : <span>{v.icon}</span>}</div>
             <div className="fleet-body">
-              <div className="bold">{v.name[lang]}</div>
-              <div className="fleet-facts small muted">
-                <span><Icon.users /> {v.capacity} {t('passengers').toLowerCase()}</span>
-                <span><Icon.bag /> {v.luggage} {t('luggage').toLowerCase()}</span>
-                <span>{v.id === 'boat' ? `🛟 ${t('lifeJackets')}` : `❄️ ${t('ac')}`}</span>
+              <div className="fleet-name">{v.name[lang]}</div>
+              <div className="fleet-specs">
+                <div><span className="muted small">{t('passengers')}</span><strong>{v.capacity}</strong></div>
+                <div><span className="muted small">{t('luggage')}</span><strong>{v.luggage}</strong></div>
               </div>
-              <div className="gold bold small">{v.note[lang]}</div>
+              <div className="fleet-feat">{v.note[lang]} · {v.id === 'boat' ? t('lifeJackets') : t('acFull')}</div>
+              {v.bestFor && <div className="muted small fleet-best">{v.bestFor[lang]}</div>}
             </div>
           </div>
         ))}

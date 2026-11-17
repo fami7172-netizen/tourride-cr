@@ -125,14 +125,14 @@ export const initialTours = [
 
 // Tipos de transporte. perPerson = el precio de la tarifa es por persona (shuttle compartido y lancha).
 export const vehicleTypes = [
-  { id: 'sedan', name: { es: 'Sedán', en: 'Sedan' }, note: { es: 'Privado', en: 'Private' }, capacity: 3, luggage: 3, icon: '🚗' },
-  { id: 'suv', name: { es: 'SUV 4x4', en: '4x4 SUV' }, note: { es: 'Privado · ideal para caminos de lastre', en: 'Private · great for gravel roads' }, capacity: 4, luggage: 4, icon: '🚙' },
-  { id: 'van6', name: { es: 'Buseta 6 pasajeros', en: '6-passenger van' }, note: { es: 'Privado', en: 'Private' }, capacity: 6, luggage: 6, icon: '🚐' },
-  { id: 'van15', name: { es: 'Buseta 15 pasajeros', en: '15-passenger van' }, note: { es: 'Privado', en: 'Private' }, capacity: 15, luggage: 15, icon: '🚐' },
-  { id: 'coaster', name: { es: 'Coaster 25 pasajeros', en: '25-seat coaster' }, note: { es: 'Privado', en: 'Private' }, capacity: 25, luggage: 25, icon: '🚌' },
-  { id: 'bus', name: { es: 'Bus 45 pasajeros', en: '45-seat bus' }, note: { es: 'Privado', en: 'Private' }, capacity: 45, luggage: 45, icon: '🚌' },
-  { id: 'shuttle', perPerson: true, name: { es: 'Shuttle compartido', en: 'Shared shuttle' }, note: { es: 'Precio por persona · horarios fijos', en: 'Per person · fixed departures' }, capacity: 12, luggage: 24, icon: '🚐' },
-  { id: 'boat', perPerson: true, name: { es: 'Lancha', en: 'Boat' }, note: { es: 'Precio por persona', en: 'Per person' }, capacity: 25, luggage: 50, icon: '🚤' },
+  { id: 'sedan', name: { es: 'Sedán', en: 'Sedan' }, note: { es: 'Privado', en: 'Private' }, capacity: 3, luggage: 3, bestFor: { es: 'Parejas y viajeros solos en carretera pavimentada', en: 'Couples and solo travelers on paved roads' }, icon: '🚗' },
+  { id: 'suv', name: { es: 'SUV 4x4', en: '4x4 SUV' }, note: { es: 'Privado · ideal para caminos de lastre', en: 'Private · great for gravel roads' }, capacity: 4, luggage: 4, bestFor: { es: 'Monteverde, caminos de lastre y época lluviosa', en: 'Monteverde, gravel roads and the rainy season' }, icon: '🚙' },
+  { id: 'van6', name: { es: 'Buseta 6 pasajeros', en: '6-passenger van' }, note: { es: 'Privado', en: 'Private' }, capacity: 6, luggage: 6, bestFor: { es: 'Familias y grupos pequeños con maletas', en: 'Families and small groups with luggage' }, icon: '🚐' },
+  { id: 'van15', name: { es: 'Buseta 15 pasajeros', en: '15-passenger van' }, note: { es: 'Privado', en: 'Private' }, capacity: 15, luggage: 15, bestFor: { es: 'Grupos medianos y equipaje de grupo', en: 'Medium groups with group luggage' }, icon: '🚐' },
+  { id: 'coaster', name: { es: 'Coaster 25 pasajeros', en: '25-seat coaster' }, note: { es: 'Privado', en: 'Private' }, capacity: 25, luggage: 25, bestFor: { es: 'Eventos, bodas y grupos grandes', en: 'Events, weddings and large groups' }, icon: '🚌' },
+  { id: 'bus', name: { es: 'Bus 45 pasajeros', en: '45-seat bus' }, note: { es: 'Privado', en: 'Private' }, capacity: 45, luggage: 45, bestFor: { es: 'Circuitos y traslados de grupo completo', en: 'Tours and whole-group transfers' }, icon: '🚌' },
+  { id: 'shuttle', perPerson: true, name: { es: 'Shuttle compartido', en: 'Shared shuttle' }, note: { es: 'Precio por persona · horarios fijos', en: 'Per person · fixed departures' }, capacity: 12, luggage: 24, bestFor: { es: 'Viajeros que quieren ahorrar, con salidas a horas fijas', en: 'Budget travelers, with fixed departure times' }, icon: '🚐' },
+  { id: 'boat', perPerson: true, name: { es: 'Lancha', en: 'Boat' }, note: { es: 'Precio por persona', en: 'Per person' }, capacity: 25, luggage: 50, bestFor: { es: 'Tortuguero, Bahía Drake y Montezuma', en: 'Tortuguero, Drake Bay and Montezuma' }, icon: '🚤' },
 ];
 
 export const zones = ['Aeropuerto SJO', 'Aeropuerto LIR', 'San José', 'La Fortuna', 'Monteverde', 'Manuel Antonio', 'Tamarindo', 'Playa Conchal', 'Liberia', 'La Pavona', 'Tortuguero', 'Sierpe', 'Bahía Drake', 'Jacó', 'Montezuma'];
