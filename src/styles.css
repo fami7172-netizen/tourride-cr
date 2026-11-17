@@ -587,3 +587,15 @@ button.hero-route { cursor: pointer; }
   .how-steps { margin-top: 28px; }
 }
 @media (min-width: 960px) { #como-funciona, #flota, #reservar { scroll-margin-top: 84px; } }
+
+/* correcciones de la auditoría */
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.hero-tools { position: absolute; top: calc(12px + env(safe-area-inset-top)); right: 12px; z-index: 2; display: flex; align-items: center; gap: 8px; }
+.hero-tools .lang-toggle { position: static; }
+.hero-wa { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #25d366; color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.hero-wa svg { width: 22px; height: 22px; }
+.detail-brand { position: absolute; top: calc(18px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 6px 6px; border-radius: 99px; background: rgba(11, 42, 31, 0.6); backdrop-filter: blur(6px); font-weight: 800; font-size: 14px; white-space: nowrap; }
+.detail-brand img { border-radius: 6px; }
+.wa-ask { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.wa-question { display: inline-flex; align-items: center; justify-content: center; gap: 8px; align-self: center; margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--gold); }
+.wa-question svg { width: 18px; height: 18px; }

@@ -110,12 +110,14 @@ function Shell() {
   if (screen?.name === 'bookTransfer' && !screen.draft) screen = null;
   if (!screen) stack = [];
 
+  // Idioma declarado de la página (lectores de pantalla y traductores)
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
   // Título de la pestaña del navegador según la sección
   useEffect(() => {
     const name = settings.businessName || 'TourRide CR';
     const tour = screen && (screen.name === 'tour' || screen.name === 'bookTour') ? tours.find((x) => x.id === screen.id) : null;
-    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : screen.name === 'review' ? t('leaveReview') : screen.name === 'info' ? t(screen.id === 'privacidad' ? 'privacyTitle' : 'policyTitle') : '') : { transfers: '', explore: t('navTours'), bookings: t('bookings'), profile: t('profile') }[tab];
-    document.title = part ? `${part} · ${name}` : `${name} · ${t('heroTitle')}`;
+    const part = tour ? tour.name[lang] : screen ? (screen.name === 'admin' ? t('admin') : screen.name === 'review' ? t('leaveReview') : screen.name === 'info' ? t(screen.id === 'privacidad' ? 'privacyTitle' : 'policyTitle') : '') : { transfers: '', explore: t('toursTitle'), bookings: t('bookings'), profile: t('profile') }[tab];
+    document.title = part ? `${part} · ${name}` : `${name} · ${t('siteTitle')}`;
   }, [tab, screen, lang, settings.businessName, tours]); // eslint-disable-line react-hooks/exhaustive-deps
 
   let content;
@@ -259,7 +261,7 @@ function InfoPage({ id, nav }) {
   const cancel = settings.cancelPolicy?.[lang] || settings.cancelPolicy?.es;
   return (
     <div className="pad stack narrow info-page">
-      <TopBar title={t(id === 'privacidad' ? 'privacyTitle' : 'policyTitle')} onBack={() => nav.back()} />
+      <TopBar main title={t(id === 'privacidad' ? 'privacyTitle' : 'policyTitle')} onBack={() => nav.back()} />
       {id === 'cancelacion' ? (
         <div className="card">
           {cancel ? <p>{cancel}</p> : <p>{t('cancelNone')}</p>}
@@ -291,6 +293,22 @@ function LangToggle({ inline }) {
 export function zoneLabel(z, lang) {
   return lang === 'en' && z.startsWith('Aeropuerto ') ? z.replace('Aeropuerto ', '') + ' Airport' : z;
 }
+// En la lista de lugares: nombre completo del aeropuerto, como lo conoce el turista
+const AIRPORTS = { 'Aeropuerto SJO': 'Juan Santamaría (SJO)', 'Aeropuerto LIR': 'Liberia (LIR)' };
+// Opciones de origen/destino: los aeropuertos agrupados aparte, con su nombre completo
+function PlaceOptions({ zones }) {
+  const { t, lang } = useStore();
+  const air = zones.filter((z) => AIRPORTS[z] || z.startsWith('Aeropuerto '));
+  const rest = zones.filter((z) => !air.includes(z));
+  return (
+    <>
+      {air.length > 0 && <optgroup label={t('airports')}>{air.map((z) => <option key={z} value={z}>{AIRPORTS[z] || zoneLabel(z, lang)}</option>)}</optgroup>}
+      <optgroup label={t('places')}>{rest.map((z) => <option key={z} value={z}>{z}</option>)}<option value={OTHER}>{t('otherPlace')}</option></optgroup>
+    </>
+  );
+}
+// Número de SINPE legible: 50688880000 → 8888-0000
+export const fmtSinpe = (n) => { const d = String(n || '').replace(/\D/g, '').replace(/^506(?=\d{8}$)/, ''); return d.length === 8 ? d.slice(0, 4) + '-' + d.slice(4) : d; };
 
 function Hero({ scene, photo, title, sub, logo, height = 170 }) {
   return (
@@ -384,13 +402,13 @@ function TransfersTab({ nav }) {
         <h2 className="form-title" id="reservar">{t('bookRideTitle')}</h2>
         <div className="card list">
           <Row icon={<Icon.plane />} label={t('origin')}>
-            <select value={d.from} onChange={set('from')}>{zones.map((z) => <option key={z} value={z}>{zoneLabel(z, lang)}</option>)}<option value={OTHER}>{t('otherPlace')}</option></select>
+            <select value={d.from} onChange={set('from')}><PlaceOptions zones={zones} /></select>
           </Row>
           {d.from === OTHER && (
             <div className="row other"><input autoFocus placeholder={t('otherPlaceHint')} value={d.fromOther} onChange={set('fromOther')} /></div>
           )}
           <Row icon={<Icon.pin />} label={t('destination')}>
-            <select value={d.to} onChange={set('to')}>{zones.map((z) => <option key={z} value={z}>{zoneLabel(z, lang)}</option>)}<option value={OTHER}>{t('otherPlace')}</option></select>
+            <select value={d.to} onChange={set('to')}><PlaceOptions zones={zones} /></select>
           </Row>
           {d.to === OTHER && (
             <div className="row other"><input autoFocus placeholder={t('otherPlaceHint')} value={d.toOther} onChange={set('toOther')} /></div>
@@ -478,6 +496,9 @@ function TransfersTab({ nav }) {
               <Icon.whatsapp /> {t('quoteWhatsapp')}
             </a>
           )
+        )}
+        {price != null && vehicle && !same && (
+          <a className="wa-question" href={waLink(settings.whatsapp, `Hola, tengo una consulta sobre un traslado ${from} → ${to}, ${d.date} ${time}, ${d.pax} pasajeros, ${d.bags} maletas (${vehicle.name.es}).`)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('questionWhatsapp')}</a>
         )}
         <div className="ride-when" style={{ height: 8 }} />
         <p className="muted small center ride-when">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
@@ -795,7 +816,10 @@ function HomeHero({ nav, onRoute }) {
           : <div key={r.src} className={cls} aria-hidden={i !== slide}>{label}</div>;
       })}
       <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="34" height="34" /><span>{settings.businessName}</span></div>
-      <LangToggle />
+      <div className="hero-tools mobile-only">
+        <a className="hero-wa" href={waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋')} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon.whatsapp /></a>
+        <LangToggle inline />
+      </div>
       <div className="hero-text">
         <div className="kicker">{t('heroKicker')}</div>
         <h1>{t('heroTitle')}</h1>
@@ -913,6 +937,7 @@ function Row({ icon, label, children }) {
 function CustomerAndPayment({ c, setC, pay, setPay }) {
   const { t, settings } = useStore();
   const up = (k) => (e) => setC({ ...c, [k]: e.target.value });
+  // tarjeta: se muestra cuando el pago con tarjeta esté activo
   return (
     <>
       <h3 className="section">{t('yourData')}</h3>
@@ -926,9 +951,9 @@ function CustomerAndPayment({ c, setC, pay, setPay }) {
         {[['sinpe', t('paySinpe')], ['cash', t('payCash')]].map(([id, label]) => (
           <button key={id} type="button" className={'chip' + (pay === id ? ' on' : '')} onClick={() => setPay(id)}>{label}</button>
         ))}
-        <button type="button" className="chip" disabled>{t('payCard')}</button>
       </div>
-      {pay === 'sinpe' && <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>}
+      {pay === 'sinpe' && <p className="muted small">{t('sinpeInfo', { n: fmtSinpe(settings.sinpe || settings.whatsapp) })}</p>}
+      {pay === 'cash' && <p className="muted small">{t('cashInfo')}</p>}
     </>
   );
 }
@@ -944,7 +969,7 @@ function BookTransfer({ draft, nav }) {
   const [sending, setSending] = useState(false);
   const deposit = draft.quote ? 0 : Math.round((draft.price * (settings.depositPct || 0)) / 100);
   const [c, setC] = useState(profile);
-  const [pay, setPay] = useState('sinpe');
+  const [pay, setPay] = useState(lang === 'en' ? 'cash' : 'sinpe');
   const [err, setErr] = useState('');
   const vehicle = vehicleTypes.find((v) => v.id === draft.vehicleId);
 
@@ -1002,12 +1027,12 @@ async function send(b, submitBooking, setSending, setErr, t, nav) {
   }
 }
 
-function TopBar({ title, onBack }) {
+function TopBar({ title, onBack, main }) {
   const { t } = useStore();
   return (
     <div className="topbar">
       <button className="round" onClick={onBack} aria-label={t('back')}><Icon.back /></button>
-      <h2>{title}</h2>
+      {main ? <h1>{title}</h1> : <h2>{title}</h2>}
     </div>
   );
 }
@@ -1045,7 +1070,7 @@ function ExploreTab({ nav }) {
       <div className="pad stack">
         <div className="search">
           <Icon.search />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search')} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('search')} aria-label={t('search')} type="search" />
         </div>
         <div className="grid2 cats">
           {categories.map((c) => (
@@ -1080,6 +1105,7 @@ function TourDetail({ id, nav }) {
         <div className="hero-shade" />
         <button className="round floating" onClick={nav.back} aria-label={t('back')}><Icon.back /></button>
         <ShareTour tour={tour} className="round floating share-float mobile-only" />
+        <div className="detail-brand mobile-only"><img src="icon-192.png" alt="" width="24" height="24" /><span>{settings.businessName}</span></div>
         <TourTag tour={tour} big />
       </Scene>
       <div className="pad detail-layout">
@@ -1091,8 +1117,9 @@ function TourDetail({ id, nav }) {
           <span className="chip static"><Icon.users /> {t('fromAge', { n: tour.minAge })}</span>
           {rating && <span className="chip static">★ {rating.avg} ({t(rating.count === 1 ? 'reviewsOne' : 'reviewsCount', { n: rating.count })})</span>}
         </div>
-        {partner && <p className="small">{t('partner')}: <strong>{partner.name}</strong></p>}
+        {partner && <p className="small muted">{t('operatedBy', { p: partner.name, b: settings.businessName })}</p>}
         <p className="muted">{tour.desc[lang]}</p>
+        <a className="btn-outline mobile-only wa-ask" href={waLink(settings.whatsapp, `Hola, tengo una consulta sobre el tour ${tour.name.es}.`)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('askWhatsapp')}</a>
 
         <div className="card list">
           <h3 className="card-title">{t('includes')}</h3>
@@ -1154,7 +1181,7 @@ function BookTour({ id, init = {}, nav }) {
   const [hotel, setHotel] = useState('');
   const [notes, setNotes] = useState(init.notes || '');
   const [c, setC] = useState(profile);
-  const [pay, setPay] = useState('sinpe');
+  const [pay, setPay] = useState(lang === 'en' ? 'cash' : 'sinpe');
   const [coupon, setCoupon] = useState('');
   const [discountPct, setDiscountPct] = useState(0);
   const [couponMsg, setCouponMsg] = useState('');
@@ -1212,7 +1239,7 @@ function BookTour({ id, init = {}, nav }) {
           const l = seatsLeft(s);
           return (
             <button key={s} type="button" disabled={l === 0} className={'chip' + (time === s ? ' on' : '')} onClick={() => setTime(s)}>
-              {fmtTime(s, lang)} <small>· {l === 0 ? t('full') : l}</small>
+              {fmtTime(s, lang)} <small>· {l === 0 ? t('full') : t('spotsLeft', { n: l })}</small>
             </button>
           );
         })}
@@ -1327,7 +1354,7 @@ function BookingDone({ id, nav }) {
       {b.cloud && !b.reviewed && (b.status === 'completed' || (b.status === 'paid' && b.date <= todayISO())) && <ReviewBox b={b} />}
       {b.reviewed && <p className="ok small center">{t('reviewThanks')}</p>}
       {b.status === 'pending' && b.deposit > 0 && <p className="muted small">{t('depositNote', { n: settings.depositPct })} {t('depositNow', { n: settings.depositPct })}: <strong className="gold">{fm(b.deposit)}</strong></p>}
-      {b.status === 'pending' && b.payment === 'sinpe' && (b.cloud ? <ReceiptBox b={b} /> : <p className="muted small">{t('sinpeInfo', { n: settings.whatsapp })}</p>)}
+      {b.status === 'pending' && b.payment === 'sinpe' && (b.cloud ? <ReceiptBox b={b} /> : <p className="muted small">{t('sinpeInfo', { n: fmtSinpe(settings.sinpe || settings.whatsapp) })}</p>)}
       <a className="btn-gold" href={waLink(settings.whatsapp, text)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('shareWhatsapp')}</a>
       <button className="btn-outline" onClick={() => nav.reset('bookings')}>{t('seeBookings')}</button>
       {(b.status === 'pending' || b.status === 'quote') && <button className="link danger" onClick={() => setAsk(true)}>{t('cancel')}</button>}
@@ -1362,7 +1389,7 @@ function ReceiptBox({ b }) {
   return (
     <div className="card receipt-box">
       <div className="bold">🧾 {t('receiptTitle')}</div>
-      <p className="muted small">{t('sinpeInfo2', { n: settings.whatsapp })}</p>
+      <p className="muted small">{t('sinpeInfo2', { n: fmtSinpe(settings.sinpe || settings.whatsapp) })}</p>
       <label className={'btn-gold small-btn' + (busy ? ' disabled' : '')}>
         {busy ? t('sending') : t('receiptBtn')}
         <input type="file" accept="image/*,application/pdf" hidden disabled={busy} onChange={pick} />
