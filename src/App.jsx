@@ -618,6 +618,30 @@ const heroSlides = [
 const shortPlace = (z) => z.replace(/^Aeropuerto\s+/, '');
 
 // Sobre la foto de cada tour: tipo de tour, lugar y duración aproximada (mismo estilo que las rutas de la portada).
+// Tarjeta de tour: foto con etiqueta, nombre, resumen corto, precio "desde" y botón de detalle
+function TourCard({ tour, nav, height = 170 }) {
+  const { t, lang, settings, fm } = useStore();
+  const p = tourPrices(tour, settings);
+  const desc = String(tour.desc?.[lang] || tour.desc?.es || '').trim();
+  return (
+    <button className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
+      <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={height} rounded={0}><TourTag tour={tour} /></Scene>
+      <div className="tour-card-body">
+        <div className="tour-card-title">{tour.name[lang]}</div>
+        {desc && <p className="tour-card-desc">{desc}</p>}
+        <div className="tour-card-foot">
+          <div>
+            <div className="tc-from">{t('from')}</div>
+            <div className="tc-price">{fm(p.adult)}</div>
+            <div className="tc-per">{t('perAdult')}<Stars tourId={tour.id} /></div>
+          </div>
+          <span className="tc-more">{t('seeDetail')} <span aria-hidden="true">→</span></span>
+        </div>
+      </div>
+    </button>
+  );
+}
+
 function TourTag({ tour, big }) {
   const { t, lang } = useStore();
   const h = String(tour.duration ?? '');
@@ -787,15 +811,7 @@ function HomeExtras({ nav }) {
             <button className="link-gold" onClick={() => nav.reset('explore')}>{t('seeAll')} →</button>
           </div>
           <div className="tour-grid">
-            {featured.map((tour) => (
-              <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-                <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={190} rounded={0}><TourTag tour={tour} /></Scene>
-                <div className="tour-card-body">
-                  <div className="tour-card-title">{tour.name[lang]}</div>
-                  <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)}<Stars tourId={tour.id} /></div>
-                </div>
-              </button>
-            ))}
+            {featured.map((tour) => <TourCard key={tour.id} tour={tour} nav={nav} height={190} />)}
           </div>
         </>
       )}
@@ -961,18 +977,7 @@ function ExploreTab({ nav }) {
         </div>
         {list.length === 0 && <p className="muted center">{t('noTours')}</p>}
         <div className="tour-grid">
-        {list.map((tour) => {
-          const p = tourPrices(tour, settings);
-          return (
-            <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-              <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={170} rounded={0}><TourTag tour={tour} /></Scene>
-              <div className="tour-card-body">
-                <div className="tour-card-title">{tour.name[lang]}</div>
-                <div className="gold small bold">{t('from')} {fm(p.adult)}<Stars tourId={tour.id} /></div>
-              </div>
-            </button>
-          );
-        })}
+        {list.map((tour) => <TourCard key={tour.id} tour={tour} nav={nav} />)}
         </div>
       </div>
     </>
