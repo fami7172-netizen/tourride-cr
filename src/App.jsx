@@ -526,6 +526,34 @@ function Testimonials() {
 // Fotos de la portada: van cambiando solas cada 6 segundos (se pueden reemplazar en public/img)
 const heroSlides = ['img/beach.jpg', 'img/volcano.jpg', 'img/waterfall.jpg', 'img/bridges.jpg'];
 
+// Enlace para compartir un tour: abre una página con la foto y el nombre del tour (la crea scripts/share-pages.mjs al publicar),
+// así en WhatsApp o Facebook sale la tarjeta con foto. En el celular usa el menú de compartir del teléfono.
+export function tourShareUrl(id, lang) {
+  const base = window.location.origin + window.location.pathname.replace(/index\.html$/, '');
+  return `${base}${lang === 'en' ? 'en/' : ''}tour/${id}/`;
+}
+function ShareTour({ tour, className, label }) {
+  const { t, lang } = useStore();
+  const share = async () => {
+    const url = tourShareUrl(tour.id, lang);
+    const title = tour.name[lang];
+    if (navigator.share) {
+      try { await navigator.share({ title, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    window.open(waLink('', `${title}\n${url}`), '_blank', 'noopener');
+  };
+  return (
+    <button type="button" className={className} onClick={share} aria-label={t('shareTour')}>
+      <ShareIcon />{label && <span>{t('shareTour')}</span>}
+    </button>
+  );
+}
+const ShareIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+  </svg>
+);
+
 // Portada de Tours: fotos de tours que van cambiando solas (como la portada principal)
 const tourSlides = ['img/explore.jpg', 'img/zipline.jpg', 'img/sloth.jpg', 'img/kayak.jpg', 'img/river.jpg'];
 function ExploreHero() {
@@ -846,6 +874,7 @@ function TourDetail({ id, nav }) {
       <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={260} rounded={0} className="detail-hero">
         <div className="hero-shade" />
         <button className="round floating" onClick={nav.back} aria-label={t('back')}><Icon.back /></button>
+        <ShareTour tour={tour} className="round floating share-float mobile-only" />
       </Scene>
       <div className="pad detail-layout">
       <div className="stack detail">
@@ -892,6 +921,7 @@ function TourDetail({ id, nav }) {
           </div>
           <button className="btn-gold" onClick={() => nav.push({ name: 'bookTour', id: tour.id })}>{t('bookTour')}</button>
           <a className="btn-outline" href={waLink(settings.whatsapp, `Hola, tengo una consulta sobre el tour ${tour.name.es}.`)} target="_blank" rel="noreferrer"><Icon.whatsapp /> {t('contactUs')}</a>
+          <ShareTour tour={tour} className="btn-outline share-link" label />
         </div>
       </aside>
       </div>

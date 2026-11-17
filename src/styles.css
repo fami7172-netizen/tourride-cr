@@ -446,3 +446,5 @@ button:disabled { opacity: 0.6; cursor: default; }
   .explore-hero .hero-dots { bottom: 26px; }
 }
 @media (max-width: 719px) { .explore-hero .hero-dots { top: calc(24px + env(safe-area-inset-top)); left: 18px; right: auto; } }
+.round.floating.share-float { left: auto; right: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.share-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
