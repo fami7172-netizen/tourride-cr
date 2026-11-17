@@ -526,6 +526,33 @@ function Testimonials() {
 // Fotos de la portada: van cambiando solas cada 6 segundos (se pueden reemplazar en public/img)
 const heroSlides = ['img/beach.jpg', 'img/volcano.jpg', 'img/waterfall.jpg', 'img/bridges.jpg'];
 
+// Portada de Tours: fotos de tours que van cambiando solas (como la portada principal)
+const tourSlides = ['img/explore.jpg', 'img/zipline.jpg', 'img/sloth.jpg', 'img/kayak.jpg', 'img/river.jpg'];
+function ExploreHero() {
+  const { t } = useStore();
+  const [slide, setSlide] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setSlide((n) => (n + 1) % tourSlides.length), 6000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="hero explore-hero"><div className="scene" style={{ height: 170, borderRadius: 0 }}>
+      {tourSlides.map((src, i) => (
+        <img key={src} src={src} alt="" className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
+      ))}
+      <div className="hero-shade" />
+      <div className="hero-dots">
+        {tourSlides.map((src, i) => <button key={src} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} aria-label={`${i + 1}`} />)}
+      </div>
+      <LangToggle />
+      <div className="hero-text">
+        <h1>{t('explore')}</h1>
+        <p>{t('exploreSub')}</p>
+      </div>
+    </div></div>
+  );
+}
+
 // Portada: qué ofrecemos en 5 segundos + dos botones principales
 function HomeHero({ nav }) {
   const { t, settings } = useStore();
@@ -771,7 +798,7 @@ function ExploreTab({ nav }) {
 
   return (
     <>
-      <Hero scene="jungle" photo="explore" title={t('explore')} sub={t('exploreSub')} height={170} />
+      <ExploreHero />
       <div className="pad stack">
         <div className="search">
           <Icon.search />

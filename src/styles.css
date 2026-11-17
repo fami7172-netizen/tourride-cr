@@ -436,3 +436,13 @@ button:disabled { opacity: 0.6; cursor: default; }
 .review-page .star-pick { justify-content: center; }
 .review-logo { border-radius: 14px; }
 .admin-notes { background: rgba(242, 196, 90, .10); border-left: 3px solid var(--gold); padding: 6px 10px; border-radius: 8px; margin: 4px 0; }
+/* portada de Tours con fotos que cambian: se ve más la foto */
+.explore-hero .scene { position: relative; overflow: hidden; }
+.explore-hero .hero-shade { background: linear-gradient(180deg, rgba(8, 32, 23, 0.25) 0%, rgba(8, 32, 23, 0) 35%, rgba(11, 42, 31, 0.85) 100%); }
+@media (min-width: 720px) { .explore-hero .hero-dots { top: auto; bottom: 14px; } }
+@media (max-width: 719px) { .explore-hero .scene { height: 220px !important; } }
+@media (min-width: 960px) {
+  .explore-hero .hero-shade { background: linear-gradient(90deg, rgba(8, 32, 23, 0.7), rgba(8, 32, 23, 0) 60%), linear-gradient(180deg, rgba(11, 42, 31, 0) 55%, rgba(11, 42, 31, 0.9)); }
+  .explore-hero .hero-dots { bottom: 26px; }
+}
+@media (max-width: 719px) { .explore-hero .hero-dots { top: calc(24px + env(safe-area-inset-top)); left: 18px; right: auto; } }
