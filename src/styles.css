@@ -628,7 +628,6 @@ button.hero-route { cursor: pointer; }
 .qr-brand span { font-family: var(--serif); font-weight: 700; font-size: 20px; color: #0b2a1f; }
 @media (min-width: 900px) { .brand span { font-size: 20px; } }
 
-/* WhatsApp flotante (celular): abajo a la derecha, encima del menú; si el asistente está encendido, va encima de él */
-.wa-fab { position: fixed; right: 16px; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 29; width: 54px; height: 54px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #25d366; color: #fff; box-shadow: 0 6px 20px rgba(0, 0, 0, .4); }
-.wa-fab svg { width: 28px; height: 28px; }
-.wa-fab.stacked { bottom: calc(148px + env(safe-area-inset-bottom)); }
+/* WhatsApp arriba en la portada del celular: pequeño, junto al botón de idioma */
+.hero-wa { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #25d366; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.hero-wa svg { width: 18px; height: 18px; }
