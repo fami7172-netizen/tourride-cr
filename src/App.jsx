@@ -533,6 +533,21 @@ const heroSlides = [
 ];
 const shortPlace = (z) => z.replace(/^Aeropuerto\s+/, '');
 
+// Sobre la foto de cada tour: tipo de tour, lugar y duración aproximada (mismo estilo que las rutas de la portada).
+function TourTag({ tour, big }) {
+  const { t, lang } = useStore();
+  const h = String(tour.duration ?? '');
+  return (
+    <div className={'photo-tag' + (big ? ' big' : '')}>
+      <span className="photo-tag-text">
+        <span className="route-kicker">{t(tour.category) || t('tour')}</span>
+        <span className="route-name">{tour.location}</span>
+      </span>
+      {h && <span className="route-time">{t('approxHours', { n: lang === 'en' ? h : h.replace('.', ',') })}</span>}
+    </div>
+  );
+}
+
 // Enlace para compartir un tour: abre una página con la foto y el nombre del tour (la crea scripts/share-pages.mjs al publicar),
 // así en WhatsApp o Facebook sale la tarjeta con foto. En el celular usa el menú de compartir del teléfono.
 export function tourShareUrl(id, lang) {
@@ -690,9 +705,9 @@ function HomeExtras({ nav }) {
           <div className="tour-grid">
             {featured.map((tour) => (
               <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-                <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={190} rounded={0} />
+                <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={190} rounded={0}><TourTag tour={tour} /></Scene>
                 <div className="tour-card-body">
-                  <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
+                  <div className="tour-card-title">{tour.name[lang]}</div>
                   <div className="gold small bold">{t('from')} {fm(tourPrices(tour, settings).adult)}<Stars tourId={tour.id} /></div>
                 </div>
               </button>
@@ -866,9 +881,9 @@ function ExploreTab({ nav }) {
           const p = tourPrices(tour, settings);
           return (
             <button key={tour.id} className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-              <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={170} rounded={0} />
+              <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={170} rounded={0}><TourTag tour={tour} /></Scene>
               <div className="tour-card-body">
-                <div className="tour-card-title">{tour.name[lang]} · {tour.location}</div>
+                <div className="tour-card-title">{tour.name[lang]}</div>
                 <div className="gold small bold">{t('from')} {fm(p.adult)}<Stars tourId={tour.id} /></div>
               </div>
             </button>
@@ -896,6 +911,7 @@ function TourDetail({ id, nav }) {
         <div className="hero-shade" />
         <button className="round floating" onClick={nav.back} aria-label={t('back')}><Icon.back /></button>
         <ShareTour tour={tour} className="round floating share-float mobile-only" />
+        <TourTag tour={tour} big />
       </Scene>
       <div className="pad detail-layout">
       <div className="stack detail">

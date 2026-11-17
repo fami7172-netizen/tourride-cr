@@ -461,3 +461,18 @@ button.hero-route { cursor: pointer; }
   .route-name { font-size: 26px; }
   .route-time { font-size: 12px; }
 }
+/* foto de cada tour: tipo, lugar y duración aproximada */
+.photo-tag { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 28px 14px 12px; background: linear-gradient(180deg, rgba(8, 32, 23, 0), rgba(8, 32, 23, .78)); color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.5); pointer-events: none; text-align: left; }
+.photo-tag-text { display: grid; gap: 1px; min-width: 0; }
+.photo-tag .route-kicker { font-size: 10px; text-align: left; }
+.photo-tag .route-name { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.photo-tag .route-time { font-size: 10px; padding: 4px 9px; flex-shrink: 0; }
+.photo-tag.big { padding: 40px 18px 16px; }
+.photo-tag.big .route-kicker { font-size: 11px; }
+.photo-tag.big .route-name { font-size: 24px; }
+.photo-tag.big .route-time { font-size: 11px; padding: 5px 11px; }
+@media (min-width: 960px) {
+  .photo-tag.big { padding: 60px max(32px, calc((100% - 1200px) / 2 + 32px)) 24px; }
+  .photo-tag.big .route-name { font-size: 32px; }
+  .photo-tag.big .route-time { font-size: 12px; }
+}
