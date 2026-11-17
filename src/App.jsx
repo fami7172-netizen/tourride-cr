@@ -194,10 +194,10 @@ function Footer({ go, nav, withNav, openAdmin }) {
   const { t, settings } = useStore();
   const secret = useSecretTaps(openAdmin);
   const wa = waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋');
-  const toFleet = (e) => {
+  const toSection = (id) => (e) => {
     e.preventDefault();
     go('transfers');
-    setTimeout(() => document.getElementById('flota')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
   };
   const info = (id) => (e) => { e.preventDefault(); nav.push({ name: 'info', id }); };
   const tab = (id) => (e) => { e.preventDefault(); go(id); };
@@ -216,8 +216,9 @@ function Footer({ go, nav, withNav, openAdmin }) {
         <nav className="sf-col" aria-label={t('footerExplore')}>
           <h4>{t('footerExplore')}</h4>
           <a href={TAB_PATH.transfers} onClick={tab('transfers')}>{t('footerTransfers')}</a>
-          <a href="#/" onClick={toFleet}>{t('footerFleet')}</a>
+          <a href="#/" onClick={toSection('flota')}>{t('footerFleet')}</a>
           <a href={TAB_PATH.explore} onClick={tab('explore')}>{t('navTours')}</a>
+          <a href="#/" onClick={toSection('como-funciona')}>{t('howTitleShort')}</a>
         </nav>
         <nav className="sf-col" aria-label={t('footerHelp')}>
           <h4>{t('footerHelp')}</h4>
@@ -482,6 +483,7 @@ function TransfersTab({ nav }) {
         <p className="muted small center ride-when">{fmtDate(d.date, lang)} · {fmtTime(time, lang)}</p>
       </div>
         </div>
+      <HowItWorks />
       <FleetCatalog />
       <HomeExtras nav={nav} />
     </>
@@ -808,6 +810,43 @@ function HomeHero({ nav, onRoute }) {
 }
 
 // Catálogo de vehículos: capacidad, maletas, aire acondicionado y precio desde
+// "Cómo funciona": los 4 pasos reales de una reserva y lo que el cliente puede esperar
+const HowIcon = {
+  pick: () => <svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>,
+  book: () => <svg viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 18h2M18 14h2" /></svg>,
+  pay: () => <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18M7 15h3" /></svg>,
+  confirm: () => <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>,
+};
+function HowItWorks() {
+  const { t } = useStore();
+  const steps = [['pick', 'how1'], ['book', 'how2'], ['pay', 'how3'], ['confirm', 'how4']];
+  return (
+    <section className="pad how" id="como-funciona">
+      <div className="how-head">
+        <div className="how-kicker">{t('howTitleShort')}</div>
+        <h2>{t('howTitle')}</h2>
+        <p>{t('howSub')}</p>
+      </div>
+      <div className="how-steps">
+        {steps.map(([ic, k], i) => {
+          const I = HowIcon[ic];
+          return (
+            <div key={k} className="how-step">
+              <div className="how-top"><span className="how-num">0{i + 1}</span><span className="how-icon"><I /></span></div>
+              <h3>{t(k)}</h3>
+              <p>{t(k + 'Sub')}</p>
+            </div>
+          );
+        })}
+      </div>
+      <div className="how-expect">
+        <h3>{t('howExpect')}</h3>
+        <ul>{[1, 2, 3, 4, 5].map((n) => <li key={n}>{t('expect' + n)}</li>)}</ul>
+      </div>
+    </section>
+  );
+}
+
 function FleetCatalog() {
   const { t, lang, rates } = useStore();
   // solo los tipos de vehículo que tienen al menos una ruta con tarifa
@@ -843,14 +882,6 @@ function HomeExtras({ nav }) {
   const featured = tours.filter((x) => x.active && x.featured && partners.some((p) => p.id === x.partnerId && p.active !== false)).slice(0, 3);
   return (
     <div className="pad home-extras">
-      <div className="why">
-        {[['🚐', 'why1'], ['🗣️', 'why2'], ['📲', 'why3']].map(([ic, k]) => (
-          <div key={k} className="why-item">
-            <span className="why-icon">{ic}</span>
-            <div><div className="bold">{t(k)}</div><div className="muted small">{t(k + 'Sub')}</div></div>
-          </div>
-        ))}
-      </div>
       {featured.length > 0 && (
         <>
           <div className="section-head">
