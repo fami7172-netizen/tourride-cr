@@ -1,4 +1,4 @@
-import { photos } from './photos.js';
+import { photos, srcSet } from './photos.js';
 
 // Ilustraciones en SVG (no dependen de internet). Se pueden cambiar por fotos reales en la etapa 2.
 const palettes = {
@@ -13,12 +13,12 @@ const palettes = {
   beach: ['#ffe0a3', '#5cc6d6', '#1b6f5c'],
 };
 
-export default function Scene({ scene = 'jungle', photo, alt = '', noPhoto, className = '', height = 140, rounded = 16, children }) {
+export default function Scene({ scene = 'jungle', photo, alt = '', noPhoto, className = '', height = 140, rounded = 16, sizes = '100vw', children }) {
   const src = noPhoto ? null : photos[photo] || photos[scene];
   if (src) {
     return (
       <div className={"scene " + className} style={{ height, borderRadius: rounded }}>
-        <img src={src} alt={alt} className="scene-photo" loading="lazy" />
+        <img src={src} srcSet={srcSet(src)} sizes={sizes} alt={alt} className="scene-photo" loading="lazy" decoding="async" />
         {children}
       </div>
     );

@@ -5,7 +5,7 @@ import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
 import Assistant from './Assistant.jsx';
-import { photos } from './photos.js';
+import { photos, srcSet } from './photos.js';
 import * as cloud from './cloud.js';
 
 export default function App() {
@@ -461,7 +461,7 @@ function TransfersTab({ nav }) {
             <>
               <h3 className="section">{t('chooseRide')}</h3>
               <div className="card vehicle on">
-                <div className="vehicle-img">{photos[quoteVehicle.id] ? <img src={photos[quoteVehicle.id]} alt={quoteVehicle.name[lang]} /> : <span>{quoteVehicle.icon}</span>}</div>
+                <div className="vehicle-img">{photos[quoteVehicle.id] ? <img src={photos[quoteVehicle.id]} srcSet={srcSet(photos[quoteVehicle.id])} sizes="140px" alt={quoteVehicle.name[lang]} /> : <span>{quoteVehicle.icon}</span>}</div>
                 <div className="vehicle-info">
                   <div className="vehicle-name">{quoteVehicle.name[lang]}</div>
                   <div className="gold big">{t('quote')}</div>
@@ -479,7 +479,7 @@ function TransfersTab({ nav }) {
             <h3 className="section">{t('chooseRide')}</h3>
             {options.map((o) => (
               <button key={o.v.id} type="button" className={'card vehicle' + (o.v.id === vehicle.id ? ' on' : '')} onClick={() => setChosen(o.v.id)}>
-                <div className="vehicle-img">{photos[o.v.id] ? <img src={photos[o.v.id]} alt={o.v.name[lang]} /> : <span>{o.v.icon}</span>}</div>
+                <div className="vehicle-img">{photos[o.v.id] ? <img src={photos[o.v.id]} srcSet={srcSet(photos[o.v.id])} sizes="140px" alt={o.v.name[lang]} /> : <span>{o.v.icon}</span>}</div>
                 <div className="vehicle-info">
                   <div className="vehicle-name">{o.v.name[lang]}</div>
                   <div className="muted small">{o.v.note[lang]}</div>
@@ -682,7 +682,7 @@ function CustomTrip() {
         <div className="ct-grid">
           {tripPlaces.map((p) => (
             <button key={p.id} type="button" className={'ct-place' + (sel.includes(p.id) ? ' on' : '')} aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>
-              <img src={p.img} alt="" loading="lazy" />
+              <img src={p.img} srcSet={srcSet(p.img)} sizes="(min-width: 900px) 220px, 45vw" alt="" loading="lazy" />
               <span className="ct-name">{label(p)}</span>
               <span className="ct-check" aria-hidden="true">✓</span>
             </button>
@@ -707,7 +707,7 @@ function TourCard({ tour, nav, height = 170 }) {
   const desc = String(tour.desc?.[lang] || tour.desc?.es || '').trim();
   return (
     <button className="tour-card" onClick={() => nav.push({ name: 'tour', id: tour.id })}>
-      <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={height} rounded={0}><TourTag tour={tour} /></Scene>
+      <Scene scene={tour.scene} photo={'tour-' + tour.id} alt={tour.name[lang]} height={height} rounded={0} sizes="(min-width: 900px) 380px, 210px"><TourTag tour={tour} /></Scene>
       <div className="tour-card-body">
         <div className="tour-card-title">{tour.name[lang]}</div>
         {desc && <p className="tour-card-desc">{desc}</p>}
@@ -767,17 +767,24 @@ const ShareIcon = () => (
 );
 
 // Portada de Tours: fotos de tours que van cambiando solas (como la portada principal)
+// Carrusel de portada: baja la foto que se ve y la siguiente, no todas de una vez (página más rápida en celular).
+function useSlidesUpTo(slide) {
+  const [upto, setUpto] = useState(1);
+  useEffect(() => { setUpto((u) => Math.max(u, slide + 1)); }, [slide]);
+  return upto;
+}
 const tourSlides = ['img/explore.jpg', 'img/zipline.jpg', 'img/sloth.jpg', 'img/kayak.jpg', 'img/river.jpg'];
 function ExploreHero() {
   const { t } = useStore();
   const [slide, setSlide] = useState(0);
+  const upto = useSlidesUpTo(slide);
   useEffect(() => {
     const id = setInterval(() => setSlide((n) => (n + 1) % tourSlides.length), 6000);
     return () => clearInterval(id);
   }, []);
   return (
     <div className="hero explore-hero"><div className="scene" style={{ height: 170, borderRadius: 0 }}>
-      {tourSlides.map((src, i) => (
+      {tourSlides.map((src, i) => i <= upto && (
         <img key={src} src={src} alt="" className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
       ))}
       <div className="hero-shade" />
@@ -799,6 +806,7 @@ function HomeHero({ nav, onRoute }) {
   const secret = useSecretTaps(() => nav.push({ name: 'admin' }));
   const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [slide, setSlide] = useState(0);
+  const upto = useSlidesUpTo(slide);
   // Cambia aunque el aparato tenga "reducir animaciones" (en ese caso sin el acercamiento, ver styles.css)
   useEffect(() => {
     const id = setInterval(() => setSlide((n) => (n + 1) % heroSlides.length), 6000);
@@ -806,7 +814,7 @@ function HomeHero({ nav, onRoute }) {
   }, []);
   return (
     <div className="hero home-hero"><div className="scene" style={{ height: 360, borderRadius: 0 }}>
-      {heroSlides.map(({ src }, i) => (
+      {heroSlides.map(({ src }, i) => i <= upto && (
         <img key={src} src={src} alt={i === 0 ? t('heroAlt') : ''} className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
       ))}
       <div className="hero-shade" />
@@ -895,7 +903,7 @@ function FleetCatalog() {
       <div className="fleet-grid">
         {list.map(({ v }) => (
           <div key={v.id} className="card fleet-card">
-            <div className="fleet-img">{photos[v.id] ? <img src={photos[v.id]} alt={v.name[lang]} loading="lazy" /> : <span>{v.icon}</span>}</div>
+            <div className="fleet-img">{photos[v.id] ? <img src={photos[v.id]} srcSet={srcSet(photos[v.id])} sizes="(min-width: 900px) 320px, 210px" alt={v.name[lang]} loading="lazy" /> : <span>{v.icon}</span>}</div>
             <div className="fleet-body">
               <div className="fleet-name">{v.name[lang]}</div>
               <div className="fleet-specs">

@@ -105,7 +105,7 @@ h1, h2, h3 { margin: 0; }
 .tour-card-title { font-family: var(--serif); font-size: 20px; font-weight: 700; line-height: 1.25; }
 .tour-card-desc { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .tour-card-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
-.tc-from { font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.tc-from { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .tc-price { font-family: var(--serif); font-size: 26px; font-weight: 700; color: var(--gold); line-height: 1.1; }
 .tc-per { font-size: 12px; color: var(--muted); }
 .tc-more { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border: 1px solid rgba(244, 239, 226, .4); border-radius: 99px; font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text); }
@@ -150,7 +150,7 @@ h1, h2, h3 { margin: 0; }
 .empty > * + * { margin-top: 12px; }
 
 .bottom-nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(10px + env(safe-area-inset-bottom)); width: calc(100% - 24px); max-width: 456px; display: grid; grid-template-columns: repeat(4, 1fr); background: rgba(19, 63, 46, 0.92); backdrop-filter: blur(10px); border: 1px solid var(--line); border-radius: 999px; padding: 6px; z-index: 10; }
-.bottom-nav button, .bottom-nav a { text-decoration: none; background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--muted); padding: 7px 0; border-radius: 999px; cursor: pointer; }
+.bottom-nav button, .bottom-nav a { text-decoration: none; background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); padding: 7px 0; border-radius: 999px; cursor: pointer; }
 .bottom-nav button.active, .bottom-nav a.active { background: rgba(242, 196, 90, 0.16); color: var(--gold); }
 
 .modal-back { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 50; }
@@ -413,7 +413,7 @@ button:disabled { opacity: 0.6; cursor: default; }
 .chat-input { display: flex; gap: 8px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
 .chat-input input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 11px 14px; color: var(--text); font-size: 16px; outline: 0; }
 .chat-input input:focus { border-color: var(--gold); }
-.chat-foot { font-size: 11px; text-align: center; padding: 4px 12px calc(10px + env(safe-area-inset-bottom)); margin: 0; }
+.chat-foot { font-size: 12px; text-align: center; padding: 4px 12px calc(10px + env(safe-area-inset-bottom)); margin: 0; }
 .chat-foot a { color: var(--gold); }
 @media (min-width: 720px) {
   .chat-fab, .chat-fab.raised { right: 24px; bottom: 24px; }
@@ -458,9 +458,9 @@ button:disabled { opacity: 0.6; cursor: default; }
 .hero-route { position: absolute; z-index: 2; left: 16px; top: calc(60px + env(safe-area-inset-top)); display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 10px; row-gap: 2px; padding: 0; border: 0; background: none; color: #fff; text-align: left; font: inherit; opacity: 0; transform: translateY(6px); transition: opacity .8s ease, transform .8s ease; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,.55); }
 .hero-route.on { opacity: 1; transform: none; pointer-events: auto; }
 button.hero-route { cursor: pointer; }
-.route-kicker { grid-column: 1 / -1; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.85); }
+.route-kicker { grid-column: 1 / -1; font-size: 12px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.85); }
 .route-name { font-family: var(--serif); font-size: 19px; font-weight: 500; }
-.route-time { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border: 1px solid rgba(255,255,255,.55); border-radius: 99px; background: rgba(8, 32, 23, .45); backdrop-filter: blur(4px); text-shadow: none; white-space: nowrap; }
+.route-time { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border: 1px solid rgba(255,255,255,.55); border-radius: 99px; background: rgba(8, 32, 23, .45); backdrop-filter: blur(4px); text-shadow: none; white-space: nowrap; }
 @media (min-width: 960px) {
   .hero-route { top: auto; left: auto; right: max(32px, calc((100% - 1200px) / 2 + 32px)); bottom: 160px; justify-items: end; }
   .route-kicker { text-align: right; }
@@ -470,13 +470,13 @@ button.hero-route { cursor: pointer; }
 /* foto de cada tour: tipo, lugar y duración aproximada */
 .photo-tag { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; padding: 28px 14px 12px; background: linear-gradient(180deg, rgba(8, 32, 23, 0), rgba(8, 32, 23, .78)); color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.5); pointer-events: none; text-align: left; }
 .photo-tag-text { display: grid; gap: 1px; min-width: 0; }
-.photo-tag .route-kicker { font-size: 10px; text-align: left; }
+.photo-tag .route-kicker { font-size: 11px; text-align: left; }
 .photo-tag .route-name { font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.photo-tag .route-time { font-size: 10px; padding: 4px 9px; flex-shrink: 0; }
+.photo-tag .route-time { font-size: 11px; padding: 4px 9px; flex-shrink: 0; }
 .photo-tag.big { padding: 40px 18px 16px; }
-.photo-tag.big .route-kicker { font-size: 11px; }
+.photo-tag.big .route-kicker { font-size: 12px; }
 .photo-tag.big .route-name { font-size: 24px; }
-.photo-tag.big .route-time { font-size: 11px; padding: 5px 11px; }
+.photo-tag.big .route-time { font-size: 12px; padding: 5px 11px; }
 @media (min-width: 960px) {
   .photo-tag.big { padding: 60px max(32px, calc((100% - 1200px) / 2 + 32px)) 24px; }
   .photo-tag.big .route-name { font-size: 32px; }
@@ -522,7 +522,7 @@ button.hero-route { cursor: pointer; }
 .price-summary { padding: 12px 2px 4px; border-top: 1px solid var(--line); }
 .ps-top { display: flex; align-items: baseline; gap: 10px; }
 .ps-total { font-family: var(--serif); font-size: 34px; font-weight: 700; color: var(--text); line-height: 1; }
-.ps-label { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.ps-label { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .ps-fx { margin-top: 4px; font-size: 13px; color: var(--gold); }
 .ps-route { margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.45; }
 
@@ -534,7 +534,7 @@ button.hero-route { cursor: pointer; }
 .ct-idea { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
 .ct-idea textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 76px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(8, 32, 23, .55); color: var(--text); font: inherit; font-size: 14px; }
 .ct-btn { margin-top: 14px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; text-transform: uppercase; letter-spacing: .08em; font-size: 14px; }
-.ct-pick { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.ct-pick { font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 .ct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ct-place { position: relative; height: 110px; padding: 0; border: 2px solid transparent; border-radius: 16px; overflow: hidden; cursor: pointer; background: #082018; }
 .ct-place img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
@@ -559,7 +559,7 @@ button.hero-route { cursor: pointer; }
 
 /* Cómo funciona */
 .how { padding-top: 32px; padding-bottom: 12px; }
-.how-kicker { font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
+.how-kicker { font-size: 12px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); }
 .how-head h2 { margin: 8px 0 10px; font-family: var(--serif); font-size: 30px; line-height: 1.15; font-weight: 700; max-width: 640px; }
 .how-head p { margin: 0; color: var(--muted); line-height: 1.55; max-width: 560px; }
 .how-steps { margin-top: 22px; display: grid; grid-template-columns: 1fr; border: 1px solid var(--line); border-radius: 22px; background: var(--card); overflow: hidden; }

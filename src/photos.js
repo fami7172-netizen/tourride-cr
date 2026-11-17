@@ -21,3 +21,6 @@ export const photos = {
   shuttle: 'img/shuttle.jpg',
   boat: 'img/boat.jpg',
 };
+
+// Copias de 640 px (public/img/sm) para tarjetas y fotos pequeñas: el navegador escoge la que necesita.
+export const srcSet = (src) => (/^img\/[\w-]+\.jpg$/.test(src || '') ? `${src.replace('img/', 'img/sm/')} 640w, ${src} 1200w` : undefined);
