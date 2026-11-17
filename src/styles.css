@@ -524,3 +524,34 @@ button.hero-route { cursor: pointer; }
 .ps-label { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .ps-fx { margin-top: 4px; font-size: 13px; color: var(--gold); }
 .ps-route { margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+
+/* Diseña tu propio recorrido */
+.custom-trip { margin: 28px 0 8px; display: grid; gap: 18px; padding: 22px 18px; border-radius: 24px; border: 1px solid var(--line); background: radial-gradient(120% 120% at 0% 0%, rgba(242, 196, 90, .10), transparent 55%), #0f3d33; }
+.ct-spark { color: var(--gold); font-size: 22px; }
+.custom-trip h2 { margin: 6px 0 8px; font-family: Georgia, 'Times New Roman', serif; font-size: 26px; line-height: 1.2; }
+.ct-head p { margin: 0; color: rgba(244, 239, 226, .82); line-height: 1.55; font-size: 15px; }
+.ct-idea { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+.ct-idea textarea { width: 100%; box-sizing: border-box; resize: vertical; min-height: 76px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(8, 32, 23, .55); color: var(--text); font: inherit; font-size: 14px; }
+.ct-btn { margin-top: 14px; display: inline-flex; justify-content: center; align-items: center; gap: 8px; width: 100%; box-sizing: border-box; text-transform: uppercase; letter-spacing: .08em; font-size: 14px; }
+.ct-pick { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.ct-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ct-place { position: relative; height: 110px; padding: 0; border: 2px solid transparent; border-radius: 16px; overflow: hidden; cursor: pointer; background: #082018; }
+.ct-place img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s ease; }
+.ct-place::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,32,23,0) 35%, rgba(8,32,23,.85)); }
+.ct-name { position: absolute; left: 10px; right: 30px; bottom: 8px; z-index: 1; color: #fff; font-family: Georgia, 'Times New Roman', serif; font-size: 15px; line-height: 1.2; text-align: left; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+.ct-check { position: absolute; top: 8px; right: 8px; z-index: 1; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 900; color: #1f2a12; background: var(--gold); opacity: 0; transform: scale(.6); transition: .2s ease; }
+.ct-place.on { border-color: var(--gold); }
+.ct-place.on .ct-check { opacity: 1; transform: none; }
+.ct-place:hover img { transform: scale(1.05); }
+@media (min-width: 960px) {
+  .custom-trip { grid-template-columns: 1fr 1.25fr; grid-template-areas: 'head places' 'form places'; grid-template-rows: auto 1fr; gap: 18px 36px; padding: 36px; margin-top: 40px; }
+  .ct-head { grid-area: head; }
+  .ct-places { grid-area: places; }
+  .ct-form { grid-area: form; display: flex; flex-direction: column; }
+  .custom-trip h2 { font-size: 32px; }
+  .ct-btn { margin-top: auto; width: auto; align-self: flex-start; padding-left: 26px; padding-right: 26px; }
+  .ct-idea { margin-bottom: 18px; }
+  .ct-form .ct-btn { margin-top: auto; }
+  .ct-grid { grid-template-columns: repeat(3, 1fr); }
+  .ct-place { height: 150px; }
+}

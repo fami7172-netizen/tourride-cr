@@ -618,6 +618,53 @@ const heroSlides = [
 const shortPlace = (z) => z.replace(/^Aeropuerto\s+/, '');
 
 // Sobre la foto de cada tour: tipo de tour, lugar y duración aproximada (mismo estilo que las rutas de la portada).
+// "Diseña tu propio recorrido": el cliente escoge destinos con foto, cuenta su idea y se manda por WhatsApp
+const tripPlaces = [
+  { id: 'fortuna', name: 'La Fortuna / Arenal', img: 'img/volcano.jpg' },
+  { id: 'manuel', name: 'Manuel Antonio', img: 'img/beach.jpg' },
+  { id: 'monteverde', name: 'Monteverde', img: 'img/bridges.jpg' },
+  { id: 'celeste', name: 'Río Celeste', img: 'img/waterfall.jpg' },
+  { id: 'guanacaste', name: 'Guanacaste', img: 'img/reef.jpg' },
+  { id: 'valle', name: { es: 'Valle Central (café)', en: 'Central Valley (coffee)' }, img: 'img/coffee.jpg' },
+];
+function CustomTrip() {
+  const { t, lang, settings } = useStore();
+  const [sel, setSel] = useState([]);
+  const [idea, setIdea] = useState('');
+  const label = (p) => (typeof p.name === 'string' ? p.name : p.name[lang]);
+  const toggle = (id) => setSel((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
+  const chosen = tripPlaces.filter((p) => sel.includes(p.id)).map((p) => (typeof p.name === 'string' ? p.name : p.name.es));
+  const msg = ['Hola, quiero diseñar mi propio recorrido.', chosen.length ? `Lugares: ${chosen.join(', ')}` : '', idea.trim() ? `Mi idea: ${idea.trim()}` : ''].filter(Boolean).join('\n');
+  return (
+    <section className="custom-trip">
+      <div className="ct-head">
+        <span className="ct-spark" aria-hidden="true">✦</span>
+        <h2>{t('ctTitle')}</h2>
+        <p>{t('ctSub')}</p>
+      </div>
+      <div className="ct-places">
+        <div className="ct-pick">{t('ctPick')}</div>
+        <div className="ct-grid">
+          {tripPlaces.map((p) => (
+            <button key={p.id} type="button" className={'ct-place' + (sel.includes(p.id) ? ' on' : '')} aria-pressed={sel.includes(p.id)} onClick={() => toggle(p.id)}>
+              <img src={p.img} alt="" loading="lazy" />
+              <span className="ct-name">{label(p)}</span>
+              <span className="ct-check" aria-hidden="true">✓</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="ct-form">
+        <label className="ct-idea">
+          <span>{t('ctIdea')}</span>
+          <textarea rows={3} maxLength={500} value={idea} onChange={(e) => setIdea(e.target.value)} placeholder={t('ctIdeaHint')} />
+        </label>
+        <a className="btn-gold ct-btn" href={waLink(settings.whatsapp, msg)} target="_blank" rel="noreferrer">{t('ctButton')} <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+  );
+}
+
 // Tarjeta de tour: foto con etiqueta, nombre, resumen corto, precio "desde" y botón de detalle
 function TourCard({ tour, nav, height = 170 }) {
   const { t, lang, settings, fm } = useStore();
@@ -815,6 +862,7 @@ function HomeExtras({ nav }) {
           </div>
         </>
       )}
+      <CustomTrip />
       <Testimonials />
     </div>
   );
@@ -979,6 +1027,7 @@ function ExploreTab({ nav }) {
         <div className="tour-grid">
         {list.map((tour) => <TourCard key={tour.id} tour={tour} nav={nav} />)}
         </div>
+        <CustomTrip />
       </div>
     </>
   );
