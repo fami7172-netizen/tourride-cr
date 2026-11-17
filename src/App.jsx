@@ -141,6 +141,9 @@ function Shell() {
       </main>
       {screen?.name !== 'admin' && <Footer go={go} nav={nav} withNav={!screen} openAdmin={() => nav.push({ name: 'admin' })} />}
       {!screen && <BottomNav tab={tab} setTab={go} />}
+      {!screen && settings.whatsapp && (
+        <a className={'wa-fab mobile-only' + (settings.assistantEnabled ? ' stacked' : '')} href={waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋')} target="_blank" rel="noreferrer" aria-label={t('contactUs')}><Icon.whatsapp /></a>
+      )}
       {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin', 'review'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
       <Toast text={toast} />
     </div>
@@ -837,7 +840,6 @@ function HomeHero({ nav, onRoute }) {
       })}
       <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="44" height="44" /><span>{settings.businessName}</span></div>
       <div className="hero-tools mobile-only">
-        <a className="hero-wa" href={waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋')} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon.whatsapp /></a>
         <LangToggle inline />
       </div>
       <div className="hero-text">
