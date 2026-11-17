@@ -138,7 +138,7 @@ h1, h2, h3 { margin: 0; }
 .done h1 { font-size: 28px; font-family: var(--serif); font-weight: 700; margin-top: 10px; }
 .done .code { font-size: 22px; font-weight: 800; letter-spacing: 1px; margin-top: 4px; }
 .big-check { width: 64px; height: 64px; border-radius: 50%; border: 3px solid var(--gold); color: var(--gold); display: inline-flex; align-items: center; justify-content: center; }
-.qr-box { background: var(--text); border-radius: 22px; padding: 18px; display: flex; justify-content: center; }
+.qr-box { background: var(--text); border-radius: 22px; padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .qr { display: block; image-rendering: pixelated; }
 
 .booking-item { display: block; width: 100%; text-align: left; cursor: pointer; }
@@ -617,3 +617,15 @@ button.hero-route { cursor: pointer; }
 .link-btn { background: none; border: 0; padding: 0; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .form-sub { margin: 10px 0 0; font-size: 14px; color: var(--gold); }
 @media (min-width: 900px) { .practical .pi-list { grid-template-columns: 1fr 1fr; column-gap: 20px; } }
+
+/* Logo más visible: un poco más grande y con borde dorado fino para que resalte sobre el verde */
+.brand img, .hero-brand img, .sf-brand img { box-shadow: 0 0 0 1.5px rgba(242, 196, 90, .75), 0 4px 14px rgba(0, 0, 0, .35); }
+.brand img { border-radius: 12px; }
+.hero-brand img { border-radius: 11px; }
+.hero-brand span { font-size: 17px; }
+.sf-brand { gap: 14px; }
+.sf-brand img { border-radius: 14px; }
+.qr-brand { display: flex; align-items: center; gap: 10px; }
+.qr-brand img { border-radius: 12px; }
+.qr-brand span { font-family: var(--serif); font-weight: 700; font-size: 20px; color: #0b2a1f; }
+@media (min-width: 900px) { .brand span { font-size: 20px; } }

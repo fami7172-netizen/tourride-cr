@@ -176,7 +176,7 @@ function TopNav({ tab, go, openAdmin }) {
     <header className="topnav desk-only">
       <div className="topnav-in">
         <button className="brand" onClick={() => { if (!secret()) go('transfers'); }}>
-          <img src="icon-192.png" alt={settings.businessName} width="38" height="38" />
+          <img src="icon-192.png" alt={settings.businessName} width="48" height="48" />
           <span>{settings.businessName}</span>
         </button>
         <nav className="topnav-links">
@@ -207,7 +207,7 @@ function Footer({ go, nav, withNav, openAdmin }) {
     <footer className={'site-footer' + (withNav ? ' with-nav' : '')}>
       <div className="sf-in">
         <div className="sf-about">
-          <div className="sf-brand"><img src="icon-192.png" alt="" width="40" height="40" /><span>{settings.businessName}</span></div>
+          <div className="sf-brand"><img src="icon-192.png" alt="" width="64" height="64" /><span>{settings.businessName}</span></div>
           <p>{t('footerAbout')}</p>
           <svg className="sf-route" viewBox="0 0 200 20" aria-hidden="true">
             <circle cx="3" cy="14" r="3" />
@@ -835,7 +835,7 @@ function HomeHero({ nav, onRoute }) {
           ? <button key={r.src} type="button" className={cls} aria-hidden={i !== slide} tabIndex={i === slide ? 0 : -1} onClick={() => onRoute(r.from, r.to)}>{label}</button>
           : <div key={r.src} className={cls} aria-hidden={i !== slide}>{label}</div>;
       })}
-      <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="34" height="34" /><span>{settings.businessName}</span></div>
+      <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="44" height="44" /><span>{settings.businessName}</span></div>
       <div className="hero-tools mobile-only">
         <a className="hero-wa" href={waLink(settings.whatsapp, 'Hola ' + settings.businessName + ' 👋')} target="_blank" rel="noreferrer" aria-label="WhatsApp"><Icon.whatsapp /></a>
         <LangToggle inline />
@@ -1398,7 +1398,7 @@ function BookingDone({ id, nav }) {
         <h1>{t('ready')}</h1>
         <div className="gold code">{b.code}</div>
       </div>
-      <div className="qr-box"><QR value={qrValue} size={190} /></div>
+      <div className="qr-box"><div className="qr-brand"><img src="icon-192.png" alt="" width="56" height="56" /><span>{settings.businessName}</span></div><QR value={qrValue} size={190} /></div>
       <p className="muted small center">{t('showQr')}</p>
       <div className="card list">
         <Info icon={b.type === 'tour' ? <Icon.compass width="18" height="18" /> : <Icon.plane />} text={bookingTitle(b, lang)} />
