@@ -294,7 +294,7 @@ function TransfersTab({ nav }) {
 
   return (
     <>
-      <HomeHero nav={nav} />
+      <HomeHero nav={nav} onRoute={(from, to) => { setD((x) => ({ ...x, from, to })); setChosen(null); document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} />
       <div className="pad transfer-layout">
         <div className="stack">
         <h2 className="form-title" id="reservar">{t('bookRideTitle')}</h2>
@@ -524,7 +524,14 @@ function Testimonials() {
 }
 
 // Fotos de la portada: van cambiando solas cada 6 segundos (se pueden reemplazar en public/img)
-const heroSlides = ['img/beach.jpg', 'img/volcano.jpg', 'img/waterfall.jpg', 'img/bridges.jpg'];
+// Cada foto muestra una ruta frecuente y el tiempo aproximado; al tocarla se llena el formulario con esa ruta.
+const heroSlides = [
+  { src: 'img/beach.jpg', from: 'Aeropuerto SJO', to: 'Manuel Antonio', hours: '3' },
+  { src: 'img/volcano.jpg', from: 'Aeropuerto SJO', to: 'La Fortuna', hours: '3' },
+  { src: 'img/waterfall.jpg', from: 'Aeropuerto LIR', to: 'Río Celeste', hours: '1.5' },
+  { src: 'img/bridges.jpg', from: 'Aeropuerto SJO', to: 'Monteverde', hours: '3.5' },
+];
+const shortPlace = (z) => z.replace(/^Aeropuerto\s+/, '');
 
 // Enlace para compartir un tour: abre una página con la foto y el nombre del tour (la crea scripts/share-pages.mjs al publicar),
 // así en WhatsApp o Facebook sale la tarjeta con foto. En el celular usa el menú de compartir del teléfono.
@@ -582,8 +589,8 @@ function ExploreHero() {
 }
 
 // Portada: qué ofrecemos en 5 segundos + dos botones principales
-function HomeHero({ nav }) {
-  const { t, settings } = useStore();
+function HomeHero({ nav, onRoute }) {
+  const { t, lang, settings, places } = useStore();
   const secret = useSecretTaps(() => nav.push({ name: 'admin' }));
   const toForm = () => document.getElementById('reservar')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const [slide, setSlide] = useState(0);
@@ -594,13 +601,27 @@ function HomeHero({ nav }) {
   }, []);
   return (
     <div className="hero home-hero"><div className="scene" style={{ height: 360, borderRadius: 0 }}>
-      {heroSlides.map((src, i) => (
+      {heroSlides.map(({ src }, i) => (
         <img key={src} src={src} alt={i === 0 ? t('heroAlt') : ''} className={'hero-slide' + (i === slide ? ' on' : '')} loading={i ? 'lazy' : 'eager'} />
       ))}
       <div className="hero-shade" />
       <div className="hero-dots">
-        {heroSlides.map((src, i) => <button key={src} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} aria-label={`${i + 1}`} />)}
+        {heroSlides.map(({ src }, i) => <button key={src} className={i === slide ? 'on' : ''} onClick={() => setSlide(i)} aria-label={`${i + 1}`} />)}
       </div>
+      {heroSlides.map((r, i) => {
+        const bookable = (places || []).includes(r.from) && (places || []).includes(r.to);
+        const label = (
+          <>
+            <span className="route-kicker">{t('popularRoute')}</span>
+            <span className="route-name">{shortPlace(r.from)} → {r.to}</span>
+            <span className="route-time">{t('approxHours', { n: lang === 'en' ? r.hours : r.hours.replace('.', ',') })}</span>
+          </>
+        );
+        const cls = 'hero-route' + (i === slide ? ' on' : '');
+        return bookable && onRoute
+          ? <button key={r.src} type="button" className={cls} aria-hidden={i !== slide} tabIndex={i === slide ? 0 : -1} onClick={() => onRoute(r.from, r.to)}>{label}</button>
+          : <div key={r.src} className={cls} aria-hidden={i !== slide}>{label}</div>;
+      })}
       <div className="hero-brand mobile-only" onClick={secret}><img src="icon-192.png" alt={settings.businessName} width="34" height="34" /><span>{settings.businessName}</span></div>
       <LangToggle />
       <div className="hero-text">

@@ -448,3 +448,16 @@ button:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 719px) { .explore-hero .hero-dots { top: calc(24px + env(safe-area-inset-top)); left: 18px; right: auto; } }
 .round.floating.share-float { left: auto; right: 12px; display: inline-flex; align-items: center; justify-content: center; }
 .share-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+/* portada: ruta frecuente y tiempo aproximado de cada foto */
+.hero-route { position: absolute; z-index: 2; left: 16px; top: calc(60px + env(safe-area-inset-top)); display: grid; grid-template-columns: auto auto; align-items: center; column-gap: 10px; row-gap: 2px; padding: 0; border: 0; background: none; color: #fff; text-align: left; font: inherit; opacity: 0; transform: translateY(6px); transition: opacity .8s ease, transform .8s ease; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,.55); }
+.hero-route.on { opacity: 1; transform: none; pointer-events: auto; }
+button.hero-route { cursor: pointer; }
+.route-kicker { grid-column: 1 / -1; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: rgba(255,255,255,.85); }
+.route-name { font-family: Georgia, 'Times New Roman', serif; font-size: 19px; font-weight: 500; }
+.route-time { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border: 1px solid rgba(255,255,255,.55); border-radius: 99px; background: rgba(8, 32, 23, .45); backdrop-filter: blur(4px); text-shadow: none; white-space: nowrap; }
+@media (min-width: 960px) {
+  .hero-route { top: auto; left: auto; right: max(32px, calc((100% - 1200px) / 2 + 32px)); bottom: 160px; justify-items: end; }
+  .route-kicker { text-align: right; }
+  .route-name { font-size: 26px; }
+  .route-time { font-size: 12px; }
+}
