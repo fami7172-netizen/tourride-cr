@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useStore as useBaseStore, isAdminRole, usd, crc, fmtDate, fmtTime, waLink, overlaps, peopleOf, todayISO } from './store.jsx';
 import * as cloud from './cloud.js';
-import { vehicleTypes } from './data.js';
+import { vehicleTypes, routeInfoDefaults } from './data.js';
 import { Icon, Field, Modal } from './ui.jsx';
 
 // Panel del dueño (solo en español). Entrar desde Perfil → Panel del dueño, con correo y contraseña.
@@ -602,7 +602,7 @@ function Rates({ nav }) {
   const update = (id, k, v) => setRates((l) => l.map((r) => (r.id === id ? { ...r, [k]: v } : r)));
   return (
     <>
-      <p className="muted small">Precio en USD. Vehículos privados: precio por viaje. Shuttle compartido y lancha: precio por persona. Pon 0 si ese transporte no va por esa ruta. La ruta sirve en ambos sentidos y los cambios se guardan solos.</p>
+      <p className="muted small">Precio en USD. Vehículos privados: precio por viaje. Shuttle compartido y lancha: precio por persona. Pon 0 si ese transporte no va por esa ruta. La distancia y el tiempo se muestran al cliente junto al precio (si los dejas vacíos se usa el valor gris de ejemplo). La ruta sirve en ambos sentidos y los cambios se guardan solos.</p>
       <button className="btn-gold" onClick={() => setRates((l) => [...l, { id: 'r' + Date.now(), from: zones[0], to: zones[1], ...Object.fromEntries(vehicleTypes.map((v) => [v.id, 0])) }])}>+ Agregar ruta</button>
       {rates.map((r) => (
         <div key={r.id} className="card form">
@@ -612,6 +612,8 @@ function Rates({ nav }) {
             {vehicleTypes.map((v) => (
               <Field key={v.id} label={v.name.es + (v.perPerson ? ' (por persona)' : '')}><input type="number" value={r[v.id]} onChange={(e) => update(r.id, v.id, Number(e.target.value))} /></Field>
             ))}
+            <Field label="Distancia (km, aprox.)"><input type="number" min="0" value={r.km || ''} placeholder={String(routeInfoDefaults[[r.from, r.to].sort().join('|')]?.km || '')} onChange={(e) => update(r.id, 'km', Number(e.target.value))} /></Field>
+            <Field label="Tiempo de viaje (horas, ej. 2.5)"><input type="number" min="0" step="0.25" value={r.hours || ''} placeholder={String(routeInfoDefaults[[r.from, r.to].sort().join('|')]?.hours || '')} onChange={(e) => update(r.id, 'hours', Number(e.target.value))} /></Field>
           </div>
           <button className="link danger" onClick={() => setRates((l) => l.filter((x) => x.id !== r.id))}>Quitar ruta</button>
         </div>

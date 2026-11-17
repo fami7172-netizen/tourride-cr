@@ -159,6 +159,35 @@ export const initialRates = [
   R('r16', 'Jacó', 'Montezuma', 0, 0, 0, 0, 0, 0, 0, 45),
 ];
 
+// Distancia y tiempo aproximados de cada ruta (por carretera; en lancha solo el tiempo).
+// Se usan si el dueño no los escribió en Panel → Tarifas.
+const RI = (a, b, km, hours) => [[a, b].sort().join('|'), { km, hours }];
+export const routeInfoDefaults = Object.fromEntries([
+  RI('Aeropuerto SJO', 'La Fortuna', 130, 2.75),
+  RI('Aeropuerto SJO', 'Manuel Antonio', 165, 3),
+  RI('Aeropuerto SJO', 'Monteverde', 150, 3.5),
+  RI('Aeropuerto SJO', 'Tamarindo', 255, 4.5),
+  RI('Aeropuerto SJO', 'San José', 20, 0.5),
+  RI('Aeropuerto LIR', 'La Fortuna', 140, 3),
+  RI('Aeropuerto LIR', 'Tamarindo', 70, 1.25),
+  RI('Aeropuerto LIR', 'Playa Conchal', 60, 1),
+  RI('Aeropuerto LIR', 'Liberia', 12, 0.25),
+  RI('La Fortuna', 'Monteverde', 110, 3.5),
+  RI('Monteverde', 'Manuel Antonio', 200, 4),
+  RI('Aeropuerto SJO', 'La Pavona', 170, 3),
+  RI('Manuel Antonio', 'Sierpe', 130, 2.25),
+  RI('La Pavona', 'Tortuguero', 0, 1.25),
+  RI('Sierpe', 'Bahía Drake', 0, 1.5),
+  RI('Jacó', 'Montezuma', 0, 1),
+]);
+export function routeInfo(rate) {
+  if (!rate) return null;
+  const def = routeInfoDefaults[[rate.from, rate.to].sort().join('|')] || {};
+  const km = Number(rate.km) || def.km || 0;
+  const hours = Number(rate.hours) || def.hours || 0;
+  return km || hours ? { km, hours } : null;
+}
+
 // Flota real: cada unidad con su placa. status: 'active' (disponible) o 'shop' (en taller, no se puede reservar)
 export const initialFleet = [
   { id: 'u1', typeId: 'sedan', plate: 'CR-100001', status: 'active' },

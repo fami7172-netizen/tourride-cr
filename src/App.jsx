@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StoreProvider, useStore, useDayBookings, ratingOf, usd, crc, findRate, waLink, todayISO, fmtDate, fmtTime, newCode, unitsFree } from './store.jsx';
-import { vehicleTypes } from './data.js';
+import { vehicleTypes, routeInfo } from './data.js';
 import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
@@ -328,6 +328,31 @@ function transferOptions(rate, pax, bags, free) {
 
 // ---------- TRASLADOS ----------
 const OTHER = '__other';
+const fmtHours = (h, lang) => {
+  const m = Math.round(h * 60);
+  const hh = Math.floor(m / 60), mm = m % 60;
+  return hh ? `${hh} h${mm ? ` ${mm} min` : ''}` : `${mm} min`;
+};
+// Precio total grande, su equivalente en la otra moneda y la distancia/tiempo de la ruta
+function PriceSummary({ total, ri, boat }) {
+  const { t, lang, fm, settings } = useStore();
+  const other = settings.currency === 'CRC' ? usd(total) : crc(total, settings.exchangeRate);
+  const h = ri?.hours ? fmtHours(ri.hours, lang) : '';
+  return (
+    <div className="price-summary">
+      <div className="ps-top">
+        <span className="ps-total">{fm(total)}</span>
+        <span className="ps-label">{t('totalLabel')}</span>
+      </div>
+      <div className="ps-fx">≈ {other} · {t('fxNote')}</div>
+      {ri && (
+        <div className="ps-route">
+          {ri.km && !boat ? `${t('routeInfo', { km: ri.km, h })} ${t('routeVaries')}` : t('routeInfoTime', { h })}
+        </div>
+      )}
+    </div>
+  );
+}
 function TransfersTab({ nav }) {
   const store = useStore();
   const { t, lang, rates, settings, places: zones, fm, fm2 } = store;
@@ -348,6 +373,7 @@ function TransfersTab({ nav }) {
   const price = opt?.total ?? null;
   const shuttleTimes = settings.shuttleTimes || [];
   const time = vehicle?.id === 'shuttle' && !shuttleTimes.includes(d.time) ? shuttleTimes[0] : d.time;
+  const ri = routeInfo(rate);
 
   return (
     <>
@@ -426,7 +452,7 @@ function TransfersTab({ nav }) {
                 <div className="vehicle-info">
                   <div className="vehicle-name">{o.v.name[lang]}</div>
                   <div className="muted small">{o.v.note[lang]}</div>
-                  <div className="gold big">{fm2(o.total)}</div>
+                  <div className="gold big">{fm(o.total)}</div>
                   {o.v.perPerson && <div className="muted small">{fm(o.unit)} × {d.pax} {t('passengers').toLowerCase()}</div>}
                 </div>
                 <span className={'radio' + (o.v.id === vehicle.id ? ' on' : '')} />
@@ -440,6 +466,7 @@ function TransfersTab({ nav }) {
             {t('requestQuote')}
           </button>
         )}
+        {price != null && vehicle && !same && <PriceSummary total={price} ri={ri} boat={vehicle.id === 'boat'} />}
         {price != null && vehicle && !same ? (
           <button className="btn-gold" onClick={() => nav.push({ name: 'bookTransfer', draft: { ...d, time, vehicleId: vehicle.id, price, unit: opt.unit } })}>
             {t('bookTransfer')} · {fm(price)}

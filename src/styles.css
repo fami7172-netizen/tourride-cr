@@ -276,8 +276,8 @@ button:disabled { opacity: 0.6; cursor: default; }
   .transfer-layout > .stack > * + * { margin-top: 0; }
   .transfer-layout > .stack:first-child > .perks { margin-top: auto; }
   .transfer-layout > .stack:last-child > .btn-gold { margin-top: auto; }
-  .transfer-layout > .stack:last-child > .card.vehicle { flex: 1 1 auto; max-height: 150px; padding-top: 10px; padding-bottom: 10px; }
-  .transfer-layout > .stack:last-child .vehicle-img { width: 120px; height: 84px; }
+  .transfer-layout > .stack:last-child > .card.vehicle { flex: 1 1 auto; max-height: 150px; padding-top: 7px; padding-bottom: 7px; }
+  .transfer-layout > .stack:last-child .vehicle-img { width: 112px; height: 76px; }
   .transfer-layout .ride-when { display: none; }
   .detail-hero { height: 420px !important; }
 
@@ -503,3 +503,11 @@ button.hero-route { cursor: pointer; }
   .sf-about, .sf-contact { grid-column: auto; }
   .sf-bottom { flex-direction: row; justify-content: space-between; align-items: center; width: calc(100% - 64px); }
 }
+
+/* resumen del precio del traslado */
+.price-summary { padding: 12px 2px 4px; border-top: 1px solid var(--line); }
+.ps-top { display: flex; align-items: baseline; gap: 10px; }
+.ps-total { font-family: Georgia, 'Times New Roman', serif; font-size: 34px; font-weight: 700; color: var(--text); line-height: 1; }
+.ps-label { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.ps-fx { margin-top: 4px; font-size: 13px; color: var(--gold); }
+.ps-route { margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.45; }
