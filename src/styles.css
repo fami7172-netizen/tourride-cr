@@ -631,3 +631,21 @@ button.hero-route { cursor: pointer; }
 /* WhatsApp arriba en la portada del celular: pequeño, junto al botón de idioma */
 .hero-wa { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #25d366; color: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
 .hero-wa svg { width: 18px; height: 18px; }
+
+/* Preguntas frecuentes (sin IA): botón discreto, letra grande y WhatsApp al pie */
+.chat-fab.faq { padding: 0; width: 52px; height: 52px; justify-content: center; color: var(--gold); background: var(--bg2); border: 1.5px solid var(--gold); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4); }
+.chat-fab.faq .chat-fab-label { display: none; }
+.faq-panel .bubble { font-size: 16px; line-height: 1.5; max-width: 90%; }
+.faq-panel .chat-suggest .chip { font-size: 15px; padding: 10px 14px; min-height: 44px; }
+.faq-pair { display: flex; flex-direction: column; gap: 8px; }
+.faq-more { font-size: 12px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin: 6px 2px 2px; }
+.faq-brand { display: flex; align-items: center; gap: 10px; }
+.faq-brand img { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--gold); object-fit: cover; }
+.faq-foot { padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+.faq-wa { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; border-radius: 999px; background: #25d366; color: #0b2b16; font-weight: 800; font-size: 16px; text-decoration: none; }
+.faq-wa svg { width: 22px; height: 22px; }
+@media (min-width: 720px) {
+  .chat-fab.faq { width: auto; height: auto; padding: 12px 18px 12px 14px; gap: 8px; }
+  .chat-fab.faq .chat-fab-label { display: inline; color: var(--text); font-size: 15px; }
+}
+.faq-pair { scroll-margin-top: 8px; }

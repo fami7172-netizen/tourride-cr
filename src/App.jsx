@@ -5,6 +5,7 @@ import Scene from './Scene.jsx';
 import { Icon, Counter, QR, Modal, Field, Toast } from './ui.jsx';
 import Admin from './Admin.jsx';
 import Assistant from './Assistant.jsx';
+import Faq from './Faq.jsx';
 import { photos, srcSet } from './photos.js';
 import * as cloud from './cloud.js';
 
@@ -142,7 +143,10 @@ function Shell() {
       {screen?.name !== 'admin' && <Footer go={go} nav={nav} withNav={!screen} openAdmin={() => nav.push({ name: 'admin' })} />}
       {!screen && <BottomNav tab={tab} setTab={go} />}
 
-      {settings.assistantEnabled && !['bookTour', 'bookTransfer', 'admin', 'review'].includes(screen?.name) && <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />}
+      {!['bookTour', 'bookTransfer', 'admin', 'review'].includes(screen?.name) && (
+        settings.assistantEnabled ? <Assistant nav={nav} raised={!screen || screen.name === 'tour'} />
+          : settings.faqEnabled !== false && <Faq nav={nav} raised={!screen || screen.name === 'tour'} />
+      )}
       <Toast text={toast} />
     </div>
   );
