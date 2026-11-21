@@ -68,6 +68,9 @@ function applyCatalog(st, cat, withPrivate) {
   if (withPrivate && cat.fleet) out.fleet = cat.fleet;
   else if (cat.fleet_public) out.fleet = cat.fleet_public;
   if (withPrivate && cat.drivers) out.drivers = cat.drivers;
+  // cupones: solo el panel los tiene; al público no se le guardan ni se le muestran
+  if (withPrivate) out.settings = { ...out.settings, coupons: cat.coupons || cat.settings?.coupons || out.settings.coupons || {} };
+  else if (cat.settings) out.settings = { ...out.settings, coupons: cat.settings.coupons || {} }; // solo bases viejas los tenían públicos
   return out;
 }
 

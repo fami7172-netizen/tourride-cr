@@ -4,7 +4,6 @@ export const initialSettings = {
   businessName: 'TourRide CR',
   whatsapp: '50688880000', // número del negocio, sin "+" ni espacios
   exchangeRate: 520, // colones por dólar
-  adminPin: '1234',
   hotelPickupPerPerson: 10,
   shuttleTimes: ['07:30', '14:00'], // salidas fijas del shuttle compartido
   highSeason: false,
@@ -15,7 +14,7 @@ export const initialSettings = {
     es: 'Cancelación gratis hasta 24 horas antes. Después de eso no hay reembolso.',
     en: 'Free cancellation up to 24 hours before. No refunds after that.',
   },
-  coupons: { TOUR10: 10, FIRST20: 20, CRADVENTURE: 15 },
+  coupons: {}, // los cupones se guardan aparte, en privado (solo el panel los ve)
 };
 
 export const initialPartners = [

@@ -631,7 +631,7 @@ function Rates({ nav }) {
 
 function Settings({ nav }) {
   const { settings, setSettings } = useStore();
-  const [f, setF] = useState({ ...settings, cancelPolicy: settings.cancelPolicy || { es: '', en: '' }, couponsText: Object.entries(settings.coupons).map(([k, v]) => `${k}=${v}`).join('\n') });
+  const [f, setF] = useState({ ...settings, cancelPolicy: settings.cancelPolicy || { es: '', en: '' }, couponsText: Object.entries(settings.coupons || {}).map(([k, v]) => `${k}=${v}`).join('\n') });
   const set = (k, num) => (e) => setF({ ...f, [k]: num ? Number(e.target.value) : e.target.value });
   const save = () => {
     const coupons = {};

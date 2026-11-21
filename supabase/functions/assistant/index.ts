@@ -18,8 +18,12 @@ const MAX_TURNS = 24; // mensajes que se mandan del historial
 const MAX_CHARS = 1000; // por mensaje del cliente
 const MAX_TOOL_ROUNDS = 5;
 
+// Solo la página del negocio puede usar el asistente desde un navegador (otras páginas no gastan tu saldo de IA).
+// Con dominio propio: secret ALLOWED_ORIGINS = "https://tudominio.com,https://fami7172-netizen.github.io"
+const ALLOWED = (Deno.env.get('ALLOWED_ORIGINS') || 'https://fami7172-netizen.github.io').split(',').map((s) => s.trim()).filter(Boolean);
 const CORS = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': ALLOWED[0],
+  'Vary': 'Origin',
   'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
@@ -258,7 +262,9 @@ Today's date in Costa Rica is ${crToday()}.`;
 
 // ---------- servidor ----------
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  const origin = req.headers.get('origin');
+  if (origin && !ALLOWED.includes(origin)) return new Response('forbidden', { status: 403 });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: { ...CORS, 'Access-Control-Allow-Origin': origin || ALLOWED[0] } });
   if (req.method !== 'POST') return json({ error: 'method' }, 405);
   if (!Deno.env.get('ANTHROPIC_API_KEY')) return json({ error: 'not_configured' }, 503);
 

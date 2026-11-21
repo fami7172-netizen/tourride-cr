@@ -1253,8 +1253,11 @@ function BookTour({ id, init = {}, nav }) {
   const total = tourAmount - discount + pickupAmount;
   const deposit = Math.round((total * (settings.depositPct || 0)) / 100);
 
-  const applyCoupon = () => {
-    const pct = settings.coupons[coupon.trim().toUpperCase()];
+  const applyCoupon = async () => {
+    const code = coupon.trim().toUpperCase();
+    // la base de datos dice si el cupón vale (los cupones no se publican); sin conexión se usa lo que haya en la app
+    let pct = 0;
+    try { pct = Number(await cloud.checkCoupon(code)) || 0; } catch (e) { pct = Number((settings.coupons || {})[code]) || 0; }
     if (pct) { setDiscountPct(pct); setCouponMsg(t('couponOk', { n: pct })); }
     else { setDiscountPct(0); setCouponMsg(t('couponBad')); }
   };

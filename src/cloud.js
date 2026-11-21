@@ -69,7 +69,7 @@ const rpc = (fn, args) => api(`rpc/${fn}`, { method: 'POST', body: args });
 // ---------- catálogo (tours, tarifas, ajustes...) ----------
 // Públicas: las ve cualquier cliente. Privadas: solo la administración.
 export const PUBLIC_KEYS = ['settings', 'tours', 'rates', 'places', 'partners_public', 'fleet_public'];
-export const PRIVATE_KEYS = ['partners', 'fleet', 'drivers'];
+export const PRIVATE_KEYS = ['partners', 'fleet', 'drivers', 'coupons'];
 
 export async function fetchCatalog() {
   const rows = await api('app_data?select=key,data');
@@ -81,8 +81,9 @@ export function catalogRows(state, slices) {
   const rows = [];
   const add = (key, data, isPublic) => rows.push({ key, data, is_public: isPublic, updated_at: new Date().toISOString() });
   if (slices.has('settings')) {
-    const { adminPin, ...pub } = state.settings;
+    const { adminPin, coupons, ...pub } = state.settings;
     add('settings', pub, true);
+    add('coupons', coupons || {}, false); // privados: el cliente los valida con check_coupon
   }
   if (slices.has('tours')) add('tours', state.tours, true);
   if (slices.has('rates')) add('rates', state.rates, true);
@@ -103,6 +104,7 @@ export const saveCatalog = (rows) => rows.length && api('app_data?on_conflict=ke
 
 // ---------- reservas del cliente (sin cuenta) ----------
 export const createBooking = (b) => rpc('create_booking', { b });
+export const checkCoupon = (code) => rpc('check_coupon', { p_code: code });
 export const getMyBooking = (code, phone) => rpc('get_my_booking', { p_code: code, p_phone: phone });
 export const cancelMyBooking = (code, phone) => rpc('cancel_my_booking', { p_code: code, p_phone: phone });
 
